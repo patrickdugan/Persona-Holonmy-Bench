@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "persona-holonomy-bench"
+version = "0.2.0"
+description = "Reproducible transcript-conditioned persona hysteresis experiments for open-weight LLMs"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "Patrick Dugan"}]
+license = {text = "MIT"}
+keywords = ["ai-control", "interpretability", "personas", "hysteresis", "evaluation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+phb = "persona_holonomy.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
