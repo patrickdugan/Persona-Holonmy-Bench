@@ -11,3 +11,6 @@ coverage/
 *.npz
 runs/*
 !runs/.gitkeep
+
+# Never accidentally publish an unblinding key.
+*-PRIVATE-key.json

@@ -43,4 +43,4 @@ jobs:
           python -m pip install -e '.[test]'
       - name: Verify actual forward-hook intervention paths
         run: |
-          python -m pytest tests/test_interventions.py tests/test_sweep.py -q
+          python -m pytest tests/test_interventions.py tests/test_sweep.py tests/test_freegen.py -q

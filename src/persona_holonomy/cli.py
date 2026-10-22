@@ -15,6 +15,7 @@ from .activations import activation_report, capture
 from .interventions import intervene_hf, intervention_report, intervention_markdown, _read_cases
 from .sweep import sweep_hf, sweep_report, sweep_markdown, sweep_plan
 from .sweep_plot import render_sweep_svg
+from .freegen import freegen_hf, write_blind_export, read_blind_report
 from .backends import make_backend
 from .protocol import CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
 from .plotting import render_svg
@@ -251,9 +252,36 @@ def command_sweep_plot(args: argparse.Namespace) -> None:
     print(f"Wrote held-out layer comparison to {path}")
 
 
+
+def command_freegen(args: argparse.Namespace) -> None:
+    count = freegen_hf(
+        input_path=args.input, output_path=args.output, model_name=args.model,
+        layer=args.layer, alphas=tuple(float(x) for x in args.alphas.split(",") if x.strip()),
+        source_conditions=tuple(x.strip() for x in args.sources.split(",") if x.strip()),
+        reference_condition=args.reference,
+        phases=tuple(x.strip() for x in args.phases.split(",") if x.strip()),
+        heldout_probe_ids=tuple(x.strip() for x in args.heldout_probes.split(",") if x.strip()),
+        holdout_fraction=args.holdout_fraction, split_seed=args.split_seed,
+        max_total_tokens=args.max_total_tokens, max_new_tokens=args.max_new_tokens,
+        device=args.device, dtype=args.dtype, allow_download=args.allow_download,
+        trust_remote_code=args.trust_remote_code,
+    )
+    print(f"Wrote {count} free-generated validation responses to {args.output}")
+
+
+def command_blind_export(args: argparse.Namespace) -> None:
+    csv_path, key_path = write_blind_export(args.input, args.output_prefix, seed=args.blind_seed)
+    print(f"Rater sheet: {csv_path}; keep mapping PRIVATE: {key_path}")
+
+
+def command_blind_report(args: argparse.Namespace) -> None:
+    report = read_blind_report(args.ratings, args.key, args.output)
+    print(f"Reported {report['n_trials']} fully rated trials to {args.output}")
+
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="phb", description="Persona Holonomy Bench, version 0.6"
+        prog="phb", description="Persona Holonomy Bench, version 0.7"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -393,6 +421,37 @@ def make_parser() -> argparse.ArgumentParser:
     sp.add_argument("--phase", default="exit")
     sp.add_argument("--alpha", type=float, default=1.)
     sp.set_defaults(func=command_sweep_plot)
+    freegen = sub.add_parser("freegen", help="Held-out causal free-generation validation")
+    freegen.add_argument("--model", required=True, help="Locally cached HF causal chat checkpoint")
+    freegen.add_argument("--input", required=True, help="Seeded case JSONL")
+    freegen.add_argument("--output", default="runs/freegen.jsonl")
+    freegen.add_argument("--layer", default="mid")
+    freegen.add_argument("--alphas", default="1")
+    freegen.add_argument("--sources", default="ordered")
+    freegen.add_argument("--reference", default="tail_matched")
+    freegen.add_argument("--phases", default="exit")
+    freegen.add_argument("--heldout-probes", default="parser_validator")
+    freegen.add_argument("--holdout-fraction", type=float, default=.4)
+    freegen.add_argument("--split-seed", type=int, default=20261022)
+    freegen.add_argument("--max-new-tokens", type=int, default=64)
+    freegen.add_argument("--max-total-tokens", type=int, default=4096)
+    freegen.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
+    freegen.add_argument("--dtype", choices=("auto", "float32", "float16", "bfloat16"), default="auto")
+    freegen.add_argument("--allow-download", action="store_true")
+    freegen.add_argument("--trust-remote-code", action="store_true")
+    freegen.set_defaults(func=command_freegen)
+
+    blind = sub.add_parser("blind-export", help="Shuffle free generations for masked manual ratings")
+    blind.add_argument("--input", required=True, help="JSONL from phb freegen")
+    blind.add_argument("--output-prefix", default="runs/blind")
+    blind.add_argument("--blind-seed", type=int, default=1729)
+    blind.set_defaults(func=command_blind_export)
+
+    rating = sub.add_parser("blind-report", help="Unblind completed ratings and calculate paired effects")
+    rating.add_argument("--ratings", required=True)
+    rating.add_argument("--key", required=True, help="Private mapping from blind-export")
+    rating.add_argument("--output", default="runs/blind-report.json")
+    rating.set_defaults(func=command_blind_report)
     return parser
 
 

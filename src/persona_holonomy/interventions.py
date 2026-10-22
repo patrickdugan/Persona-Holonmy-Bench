@@ -162,8 +162,13 @@ def _capture_hook(block: Any, state: dict[str, Any]):
 
 @contextmanager
 def _patch_hook(block: Any, *, position: int, vector: Any,
-                alpha: float, mode: str, state: dict[str, Any], reference=None):
+                alpha: float, mode: str, state: dict[str, Any], reference=None,
+                once: bool = False):
     def hook(_module, _inputs, output):
+        # Cached generation calls decoder blocks again for individual suffix
+        # tokens. Patch only the first (prefix prefill) invocation if requested.
+        if once and state["calls"]:
+            return output
         hidden = _unpack_hidden(output)
         if position >= hidden.shape[1]:
             raise ValueError("Prefix boundary lies outside hooked block output")
@@ -257,6 +262,62 @@ class CausalProbe:
         if state["calls"] != 1:
             raise RuntimeError(f"Expected one block hook call; got {state['calls']}")
         return state["vector"].float()
+
+
+    def generate(self, messages: list[dict[str, str]], *, vector=None,
+                 mode: str = "add", reference=None, alpha: float = 1.,
+                 max_new_tokens: int = 96) -> dict[str, Any]:
+        """Greedy, free-generation check with a prefill-only activation patch.
+
+        Generation is a secondary validation readout, distinct from the forced
+        continuation margin. The hook must patch only the prefix prefill: with
+        KV caching, later forward calls usually contain a single new token.
+        """
+        if not callable(getattr(self.model, "generate", None)):
+            raise ValueError("Model must implement generate() for free generation")
+        if not 0 <= alpha <= 1:
+            raise ValueError("alpha must fall in [0,1]")
+        if max_new_tokens < 1:
+            raise ValueError("max_new_tokens must be positive")
+        prefix = self._prefix(messages)
+        n_prefix = int(prefix["input_ids"].shape[1])
+        if n_prefix + max_new_tokens > self.max_total_tokens:
+            raise ValueError("Generation exceeds total token budget; shorten prompt or max_new_tokens")
+        padding = getattr(self.tokenizer, "pad_token_id", None)
+        if padding is None:
+            padding = getattr(self.tokenizer, "eos_token_id", None)
+        if isinstance(padding, list):
+            padding = padding[0] if padding else None
+        kwargs = dict(**prefix, max_new_tokens=max_new_tokens, do_sample=False,
+                      num_beams=1, use_cache=True)
+        if padding is not None:
+            kwargs["pad_token_id"] = padding
+        state: dict[str, Any] = {}
+        with self.torch.inference_mode():
+            if vector is None or alpha == 0:
+                output = self.model.generate(**kwargs)
+            else:
+                with _patch_hook(self.block, position=n_prefix - 1,
+                                 vector=vector, reference=reference, alpha=alpha,
+                                 mode=mode, state=state, once=True):
+                    output = self.model.generate(**kwargs)
+                if state["calls"] != 1:
+                    raise RuntimeError("Expected one prefix-prefill patch during generation")
+        sequences = output.sequences if hasattr(output, "sequences") else output
+        if sequences.ndim != 2 or sequences.shape[0] != 1:
+            raise ValueError("Expected one generated token sequence")
+        if sequences.shape[1] < n_prefix or not self.torch.equal(
+                sequences[0, :n_prefix], prefix["input_ids"][0]):
+            raise ValueError("Generate output must include the unchanged prefix")
+        generated_ids = sequences[0, n_prefix:].detach().cpu().tolist()
+        return {
+            "response": self.tokenizer.decode(generated_ids, skip_special_tokens=True),
+            "generated_tokens": len(generated_ids),
+            "prefix_tokens": n_prefix,
+            "prefix_sha256": hashlib.sha256(struct.pack(
+                f"<{n_prefix}q", *prefix["input_ids"].detach().cpu()[0].tolist(),
+            )).hexdigest(),
+        }
 
     def _suffix_ids(self, completion: str):
         token_ids = self.tokenizer.encode(completion, add_special_tokens=False)

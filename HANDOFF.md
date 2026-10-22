@@ -1,7 +1,7 @@
 # Agent handoff: Qwen causal pilot (2026-10-22)
 
 **Repository:** https://github.com/patrickdugan/Persona-Holonmy-Bench  
-**Current software:** PHB v0.6.0, `main` (starting commit `aadd1f1dd2953d0767295aefdbeff3896a9cc0ec`).  
+**Current software:** PHB v0.7.0, `main` (starting commit `aadd1f1dd2953d0767295aefdbeff3896a9cc0ec`).  
 **Owner's next action:** Hand this repository to Claude Code or Codex on a Windows workstation with an RTX 5080 16 GB GPU.  
 **Priority:** Run one scientifically interpretable *small* open-weight pilot before expanding the feature work.  
 **License / data boundary:** MIT, public source and synthetic scripted conversation data. Keep credentials, proprietary transcripts, and potentially infohazardous material out of the repo.
@@ -10,9 +10,9 @@
 
 Does a conversation-conditioned, rank-one residual direction learned from ordered vs. tail-matched persona induction histories causally shift a held-out model's preference for theatrical versus ordinary continuations on *unseen technical questions*?
 
-Versions 0.1–0.6 include transcript controls, activation capture, interventions, layer sweeps, seed-distinct histories, unseen-probe holdout, exact sign-flip inference, and offline cost preflight. The current code has been tested with mock responses and small PyTorch decoder fixtures. **No pretrained Qwen intervention result has been obtained yet.** The nickname “holonomy” is a hypothesis; transcript path dependence is insufficient to establish geometric holonomy, and the rank-one mean difference is not yet a VPD/SAE feature.
+Versions 0.1–0.7 include transcript controls, activation capture, interventions, layer sweeps, seed-distinct histories, unseen-probe holdout, exact sign-flip inference, and offline cost preflight. The current code has been tested with mock responses and small PyTorch decoder fixtures. **No pretrained Qwen intervention result has been obtained yet.** The nickname “holonomy” is a hypothesis; transcript path dependence is insufficient to establish geometric holonomy, and the rank-one mean difference is not yet a VPD/SAE feature.
 
-Read first: `README.md`, `docs/heldout-inference-protocol.md`, `docs/layer-sweep-protocol.md`, `docs/intervention-protocol.md`, and `docs/vpd-roadmap.md`.
+Read first: `README.md`, `docs/freegen-validation.md`, `docs/heldout-inference-protocol.md`, `docs/layer-sweep-protocol.md`, `docs/intervention-protocol.md`, and `docs/vpd-roadmap.md`.
 
 ## Work order
 
@@ -52,3 +52,23 @@ If the effect is measurable beyond the first token, preregister ~30 seed-varied 
 A small PR containing any necessary compatibility fixes, tests, a reproducible run configuration, the pilot report and figure (if obtained), and clear caveats. Link the exact GitHub Actions run. Make no claims about GPT-4.1 personality reactivation, consciousness, or model-internal holonomy from style scores.
 
 **Suggested first message to Codex/Claude:** “Read `HANDOFF.md` and the PHB v0.6 protocols. Run tests and preflight first; then conduct the small cached-HF-Qwen CUDA pilot on my RTX 5080. Keep train/test probes disjoint, retain all null controls, write a reproducible report, and open a PR. Avoid GPU-heavy runs or model downloads until the preflight is reviewed.”
+
+
+## v0.7 addition: free-generation validation (2026-10-22)
+
+After the v0.6 Qwen forced-continuation layer sweep is verified, use a **preregistered layer** to test whether the same trained rank-one direction changes *the responses the model freely generates*. This protects against optimizing only a forced-log-likelihood readout. Version 0.7 adds:
+
+- `phb freegen`: greedy response generation on unseen transcript seeds **and unseen probe questions**, with baseline / candidate / norm-matched orthogonal controls. The hook patches only the prefill call during KV-cached generation.
+- `phb blind-export`: randomized rating CSV with anonymized sample IDs plus a separate private unblinding key.
+- `phb blind-report`: all-ratings-complete enforcement and seed-clustered candidate-vs-orthogonal contrasts (style and answer quality, exact sign-flip p-values, Holm correction).
+
+Use the **same cases, split, layer selection, and checkpoint revision** as the registered Qwen causal sweep. Do not pick a winning layer on the held-out data and then report the same holdout as confirmation. For a feasibility check:
+
+```powershell
+phb freegen --model "C:\path\to\local\HF-chat-checkpoint" --input runs/qwen-pilot-cases.jsonl --layer mid --alphas 1 --sources ordered --heldout-probes parser_validator --device cuda --dtype float16 --max-new-tokens 64 --max-total-tokens 1536 --output runs/qwen-pilot-freegen.jsonl
+phb blind-export --input runs/qwen-pilot-freegen.jsonl --output-prefix runs/qwen-pilot-blind
+# Have an independently blinded reviewer complete both numeric columns.
+phb blind-report --ratings runs/qwen-pilot-blind-ratings.csv --key runs/qwen-pilot-blind-PRIVATE-key.json --output runs/qwen-pilot-blind-report.json
+```
+
+Read `docs/freegen-validation.md` for detailed ratings, controls, limitations and acceptance tests. Leave private rating keys out of PRs. If no pretrained weights are available, test the logic with fixtures, record that limit, and leave empirical claims pending. Existing toy-forward-hook tests cannot establish a model-level persona effect.

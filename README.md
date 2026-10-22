@@ -6,7 +6,7 @@ The motivating question is simple: can a long, playful conversation push a langu
 
 The initial seed is the *AI safety monastery / dungeon RPG* conversation. We make this into a controlled protocol rather than trying to decide whether a model has literally reverted to an older model's personality.
 
-> **Scope of v0.6:** transcript-conditioned behavioral hysteresis; forward-only activation capture; rank-one injection and held-out **projection erasure across preregistered decoder layers and strengths**. Paired norm-matched orthogonal controls, first-token diagnostics, unseen technical-probe holdout, exact seed-level sign-flip tests, Holm multiplicity adjustment, and an SVG layer sweep are included. Geometric holonomy and identification of VPD/SAE features remain research hypotheses.
+> **Scope of v0.7:** transcript-conditioned behavioral hysteresis; forward-only activation capture; rank-one injection and held-out **projection erasure across preregistered decoder layers and strengths**. Paired norm-matched orthogonal controls, first-token diagnostics, unseen technical-probe holdout, exact seed-level sign-flip tests, Holm multiplicity adjustment, and an SVG layer sweep are included. Geometric holonomy and identification of VPD/SAE features remain research hypotheses.
 
 ## Quick start
 
@@ -120,6 +120,31 @@ phb sweep --model /path/to/local/chat-model \
 ```
 
 The preflight records the input SHA-256 and deterministic train/test seed assignment, plus an estimated number of model forward calls. It cannot predict peak VRAM or timing. Model weights are never downloaded by default; pretrained causal claims require a real open-weight run. A new experiment should freeze its hypotheses and layers before viewing measured outcomes.
+
+## Held-out free-generation / blinded scoring (v0.7)
+
+The v0.6 causal sweep scores fixed alternative continuations. v0.7 separately
+checks **greedy answers the model actually writes**, under baseline, trained
+rank-one direction, and equal-norm orthogonal intervention. Only held-out
+conversation seeds and held-out technical questions enter evaluation. Exports
+hide condition labels and randomize response order for independent human review.
+
+```bash
+phb freegen --model /path/to/cached/HF-chat-model \
+  --input runs/qwen-cases.jsonl --layer mid --alphas 1 \
+  --sources ordered --heldout-probes parser_validator \
+  --max-new-tokens 64 --max-total-tokens 1536 \
+  --device cuda --dtype float16 --output runs/qwen-freegen.jsonl
+phb blind-export --input runs/qwen-freegen.jsonl --output-prefix runs/qwen-blind
+# Manually score the shuffled CSV while keeping the PRIVATE key from the rater.
+phb blind-report --ratings runs/qwen-blind-ratings.csv \
+  --key runs/qwen-blind-PRIVATE-key.json --output runs/qwen-blind-report.json
+```
+
+This is a test of actual generated behavior rather than only forced-token
+likelihoods. A pretrained checkpoint run and independent blinded ratings remain
+outstanding. See [the free-generation validation protocol](docs/freegen-validation.md)
+for grading instructions, causal assumptions, and acceptance criteria.
 
 ## Design
 
