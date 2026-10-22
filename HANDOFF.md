@@ -98,3 +98,9 @@ Latest work is the provenance-checked PHB × PercInterp bridge. See `docs/v09-pe
 - Next priority remains a pinned open-weight checkpoint experiment on local GPU, first as a preflight pilot. Then estimate direct component-attribution edges on a *training-only* partition, freeze PercInterp selectors, and assess results on held-out examples. Component-level causal patching is future work.
 
 Report negative effects and selectors that coincide with local degree. Never interpret a block-level audit as a component-level causal finding or label percolation-frame transport as endogenous model state transport.
+
+## v0.10: component-level PercInterp causal test
+
+The next research step is described in [docs/v010-component-ablation.md](docs/v010-component-ablation.md). PHB now provides `phb perc-components-plan`, `phb perc-components`, and `phb perc-components-report`. These test a **frozen, equal-per-block-budget PercInterp component selection** through pretrained TopK SAE decoder-contribution subtraction at the final prompt token. All selectors receive norm-matched random-orthogonal controls. Report comparisons by held-out **seed** after holding out an entire technical question family.
+
+Before running this on Qwen, obtain genuine pretrained SAEs for the **same model/revision**, derive faithful direct-attribution graph edges using only training seeds/probes, freeze `phb perc-select`, construct the explicit feature-map JSON, pin checkpoint SHA-256 values, and confirm the graph's `train_seeds` and `training_probe_ids` match PHB's deterministic split. Begin with `phb perc-components-plan`, which loads no model weights and fails on missing hashes, provenance mismatches, or unequal per-block latent budgets. A toy decoder and TopK checkpoint path pass CPU tests; real Qwen component effects remain unmeasured. If attribution graphs or trained SAEs are unavailable, prioritize their construction and validation, not generating arbitrary latent mappings.

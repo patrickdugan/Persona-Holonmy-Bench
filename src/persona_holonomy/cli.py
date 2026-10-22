@@ -20,6 +20,9 @@ from .sweep_plot import render_sweep_svg
 from .freegen import freegen_hf, write_blind_export, read_blind_report
 from .perc_bridge import select_file as perc_select_file, audit_file as perc_audit_file
 from .perc_holonomy import holonomy_file as perc_holonomy_file
+from .perc_components import (
+    component_plan_file, component_ablation_hf, component_report_file,
+)
 from .backends import make_backend
 from .protocol import CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
 from .plotting import render_svg
@@ -311,6 +314,40 @@ def command_perc_holonomy(args: argparse.Namespace) -> None:
     print(f"Analyzed {report['holonomy']['cycles_recorded']} certified frame loops "
           f"across {len(report['nodes'])} states; wrote {args.output}")
 
+def command_perc_components_plan(args: argparse.Namespace) -> None:
+    result = component_plan_file(
+        args.manifest, args.feature_map, args.input, args.output,
+        model_name=args.model, source=args.source, reference=args.reference,
+        phase=args.phase, heldout_probes=tuple(x.strip() for x in args.heldout_probes.split(",") if x.strip()),
+        holdout_fraction=args.holdout_fraction, split_seed=args.split_seed,
+        self_check=not args.skip_self_check,
+    )
+    print(f"Planned {result['n_test_cases']} held-out component trials, "
+          f"{result['estimated_model_forwards']} forwards; saved {args.output}")
+
+
+def command_perc_components(args: argparse.Namespace) -> None:
+    count = component_ablation_hf(
+        manifest_path=args.manifest, feature_path=args.feature_map,
+        input_path=args.input, output_path=args.output,
+        model_name=args.model, source=args.source, reference=args.reference,
+        phase=args.phase,
+        heldout_probes=tuple(x.strip() for x in args.heldout_probes.split(",") if x.strip()),
+        holdout_fraction=args.holdout_fraction, split_seed=args.split_seed,
+        alpha=args.alpha, max_total_tokens=args.max_total_tokens,
+        self_check=not args.skip_self_check,
+        device=args.device, dtype=args.dtype, allow_download=args.allow_download,
+        trust_remote_code=args.trust_remote_code,
+    )
+    print(f"Recorded {count} held-out selector ablation rows in {args.output}")
+
+
+def command_perc_components_report(args: argparse.Namespace) -> None:
+    report = component_report_file(args.input, args.output)
+    print(f"Reported {report['n_selectors']} selectors across "
+          f"{report['n_seed_clusters']} seeds to {args.output}")
+
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="phb", description=f"Persona Holonomy Bench, version {__version__}"
@@ -517,6 +554,38 @@ def make_parser() -> argparse.ArgumentParser:
                         help="Within-phase condition-label swaps as a permutation null")
     perc_h.add_argument("--seed", type=int, default=20261022)
     perc_h.set_defaults(func=command_perc_holonomy)
+    comp_plan = sub.add_parser(
+        "perc-components-plan", help="Offline frozen SAE feature-map audit and forward-cost preflight")
+    comp = sub.add_parser(
+        "perc-components", help="Held-out TopK SAE feature-contribution ablations with matched nulls")
+    for cmd in (comp_plan, comp):
+        cmd.add_argument("--manifest", required=True, help="Frozen output of phb perc-select")
+        cmd.add_argument("--feature-map", required=True, help="Pinned TopKSAE checkpoint and latent map JSON")
+        cmd.add_argument("--input", required=True, help="Seed-distinct case JSONL")
+        cmd.add_argument("--model", required=True, help="Exact model ID in graph/feature provenance")
+        cmd.add_argument("--source", default="ordered")
+        cmd.add_argument("--reference", default="tail_matched")
+        cmd.add_argument("--phase", default="exit")
+        cmd.add_argument("--heldout-probes", default="parser_validator")
+        cmd.add_argument("--holdout-fraction", type=float, default=.4)
+        cmd.add_argument("--split-seed", type=int, default=20261022)
+        cmd.add_argument("--skip-self-check", action="store_true")
+    comp_plan.add_argument("--output", default="runs/perc-components-plan.json")
+    comp_plan.set_defaults(func=command_perc_components_plan)
+    comp.add_argument("--output", default="runs/perc-components.jsonl")
+    comp.add_argument("--alpha", type=float, default=1.)
+    comp.add_argument("--max-total-tokens", type=int, default=4096)
+    comp.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
+    comp.add_argument("--dtype", choices=("auto", "float32", "float16", "bfloat16"), default="auto")
+    comp.add_argument("--allow-download", action="store_true")
+    comp.add_argument("--trust-remote-code", action="store_true")
+    comp.set_defaults(func=command_perc_components)
+
+    cr = sub.add_parser("perc-components-report", help="Paired seed-clustered PercInterp component-ablation report")
+    cr.add_argument("--input", required=True)
+    cr.add_argument("--output", default="runs/perc-components-report.json")
+    cr.set_defaults(func=command_perc_components_report)
+
     return parser
 
 

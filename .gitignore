@@ -14,3 +14,8 @@ runs/*
 
 # Never accidentally publish an unblinding key.
 *-PRIVATE-key.json
+
+# Keep local model/SAE weights and sensitive artifacts out of Git.
+*.safetensors
+*.pt
+*.pth

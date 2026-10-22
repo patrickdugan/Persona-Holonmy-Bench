@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "persona-holonomy-bench"
-version = "0.9.0"
+version = "0.10.0"
 description = "Reproducible transcript-conditioned persona hysteresis experiments for open-weight LLMs"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,6 +22,7 @@ dependencies = []
 [project.optional-dependencies]
 test = ["pytest>=8"]
 mechanistic = ["torch>=2.2", "transformers>=4.56"]
+sae = ["torch>=2.2", "safetensors>=0.4"]
 
 [project.scripts]
 phb = "persona_holonomy.cli:main"
