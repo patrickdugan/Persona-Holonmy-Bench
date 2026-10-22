@@ -27,7 +27,7 @@ The adapter rejects missing train/test probe partitions and tests the same held-
 
 An independent experiment seed can contain several technical probes measured at multiple phases. The previous implementation shuffled the labels of individual observations, treating highly correlated items as independently exchangeable. The v0.9 null samples one condition swap bit **per seed**, and uses it for every probe and phase in that seed. The null therefore preserves within-seed trajectories and correlations.
 
-The reported statistic is still the maximum certified loop Frobenius distance after PCA fitting and polar frame transport. Local-basis gauge invariance remains a regression check. The Monte Carlo p-value is exploratory, and its resolution depends on permutation draws plus the number of independently exchangeable seeds. The connection is specified by analysis, not learned as the model's own dynamic transport.
+The per-draw seed-swap mask is recorded as a SHA-256 fingerprint for reproducibility. Duplicating strongly correlated probe rows can change numerical PCA outputs even with an identical assignment, especially near singular-value degeneracies; test invariance of the randomization unit and masks rather than exact loop statistics. The reported statistic is still the maximum certified loop Frobenius distance after PCA fitting and polar frame transport. Local-basis gauge invariance remains a regression check. The Monte Carlo p-value is exploratory, and its resolution depends on permutation draws plus the number of independently exchangeable seeds. The connection is specified by analysis, not learned as the model's own dynamic transport.
 
 ## C. Testing and dependencies
 

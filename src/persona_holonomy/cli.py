@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
+from . import __version__
+
 from .analysis import analyze, read_jsonl, to_markdown
 from .activations import activation_report, capture
 from .interventions import intervene_hf, intervention_report, intervention_markdown, _read_cases
@@ -311,7 +313,7 @@ def command_perc_holonomy(args: argparse.Namespace) -> None:
 
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="phb", description="Persona Holonomy Bench, version 0.8"
+        prog="phb", description=f"Persona Holonomy Bench, version {__version__}"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

@@ -120,3 +120,9 @@ def test_sweep_plan_cli_without_model(tmp_path):
     assert obj["train_probe_ids"] == ["flaky_ci"]
     assert obj["test_probe_ids"] == ["parser_validator"]
     assert obj["estimated_total_model_forwards"] > 0
+
+
+def test_cli_version_matches_package_version():
+    from persona_holonomy import __version__
+    from persona_holonomy.cli import make_parser
+    assert __version__ in make_parser().description

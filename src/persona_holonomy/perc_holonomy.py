@@ -161,10 +161,16 @@ def analyze_frames(records: list[dict[str, Any]], *, layer: str,
     rng_null = np.random.default_rng(seed + 1)
     null_strengths = []
     null_cycles = []
+    swap_mask_hashes = []
     if null_shuffles:
         for _ in range(null_shuffles):
             scrambled = {node: dict(values) for node, values in state.items()}
             swapped_seed = {s: rng_null.random() < .5 for s in seeds}
+            # Record the *seed-cluster* permutation, not each correlated probe.
+            # This can be replayed and tested independently of PCA roundoff.
+            swap_mask_hashes.append(hashlib.sha256(json.dumps(
+                [s for s in seeds if swapped_seed[s]], separators=(",", ":")
+            ).encode("utf-8")).hexdigest())
             for phase in phases:
                 first, second = (conditions[0], phase), (conditions[1], phase)
                 for sample in samples:
@@ -215,6 +221,7 @@ def analyze_frames(records: list[dict[str, Any]], *, layer: str,
             "observed_max_certified_loop_frobenius": observed_strength,
             "null_max_loop_frobenius": null_strengths,
             "null_certified_cycle_counts": null_cycles,
+            "null_seed_swap_masks_sha256": swap_mask_hashes,
             "one_sided_permutation_p_value": shuffled_p,
             "p_value_resolution": 1 / (1 + null_shuffles) if null_shuffles else None,
         },
