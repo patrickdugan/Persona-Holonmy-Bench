@@ -23,6 +23,7 @@ from .perc_holonomy import holonomy_file as perc_holonomy_file
 from .perc_components import (
     component_plan_file, component_ablation_hf, component_report_file,
 )
+from .sae_pipeline import capture_plan, collect_hf, fit_topk, export_feature_map
 from .backends import make_backend
 from .protocol import CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
 from .plotting import render_svg
@@ -348,6 +349,47 @@ def command_perc_components_report(args: argparse.Namespace) -> None:
           f"{report['n_seed_clusters']} seeds to {args.output}")
 
 
+
+def command_sae_capture_plan(args: argparse.Namespace) -> None:
+    report = capture_plan(_read_cases(args.input), phase=args.phase,
+        heldout_probes=tuple(x for x in args.heldout_probes.split(",") if x),
+        holdout_fraction=args.holdout_fraction, split_seed=args.split_seed,
+        sae_validation_fraction=args.sae_validation_fraction)
+    path = Path(args.output)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    print(f"SAE capture plan: {report['n_selected_cases']} training-only cases; saved {path}")
+
+
+def command_sae_capture(args: argparse.Namespace) -> None:
+    report = collect_hf(input_path=args.input, output_dir=args.output_dir,
+        model_name=args.model, checkpoint_revision=args.revision,
+        layers=args.layers, phase=args.phase,
+        heldout_probes=tuple(x for x in args.heldout_probes.split(",") if x),
+        holdout_fraction=args.holdout_fraction, split_seed=args.split_seed,
+        sae_validation_fraction=args.sae_validation_fraction,
+        max_input_tokens=args.max_input_tokens,
+        max_tokens_per_case=args.max_tokens_per_case,
+        seed=args.seed, device=args.device, dtype=args.dtype,
+        allow_download=args.allow_download, trust_remote_code=args.trust_remote_code)
+    print(f"Captured {len(report['blocks'])} SAE layers using training-only cases in {args.output_dir}")
+
+
+def command_sae_fit(args: argparse.Namespace) -> None:
+    registry = fit_topk(capture_manifest=args.capture, output_dir=args.output_dir,
+        n_latents=args.n_latents, k=args.k, steps=args.steps,
+        batch_size=args.batch_size, lr=args.lr, seed=args.seed, device=args.device)
+    print(f"Trained {len(registry['blocks'])} PercInterp TopK SAEs in {args.output_dir}")
+    for block, details in registry['blocks'].items():
+        print(f"  block {block}: validation FVU={details['validation_fvu']:.4f}; "
+              f"coverage={details['validation_feature_coverage']:.3f}")
+
+
+def command_sae_feature_map(args: argparse.Namespace) -> None:
+    result = export_feature_map(registry_path=args.registry,
+        selection_path=args.selection, output_path=args.output)
+    print(f"Mapped {len(result['features'])} selected nodes to pinned SAEs in {args.output}")
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="phb", description=f"Persona Holonomy Bench, version {__version__}"
@@ -585,6 +627,55 @@ def make_parser() -> argparse.ArgumentParser:
     cr.add_argument("--input", required=True)
     cr.add_argument("--output", default="runs/perc-components-report.json")
     cr.set_defaults(func=command_perc_components_report)
+
+    sae_plan = sub.add_parser("sae-capture-plan", help="Offline training-only SAE data split audit")
+    for cmd in (sae_plan,):
+        cmd.add_argument("--input", required=True)
+        cmd.add_argument("--phase", default="exit")
+        cmd.add_argument("--heldout-probes", default="parser_validator")
+        cmd.add_argument("--holdout-fraction", type=float, default=.4)
+        cmd.add_argument("--split-seed", type=int, default=20261022)
+        cmd.add_argument("--sae-validation-fraction", type=float, default=.25)
+    sae_plan.add_argument("--output", default="runs/sae-capture-plan.json")
+    sae_plan.set_defaults(func=command_sae_capture_plan)
+
+    sae_cap = sub.add_parser("sae-capture", help="Capture bounded token activations for train-only SAE fitting")
+    sae_cap.add_argument("--input", required=True)
+    sae_cap.add_argument("--model", required=True)
+    sae_cap.add_argument("--revision", required=True, help="Immutable model commit or weights digest")
+    sae_cap.add_argument("--output-dir", required=True)
+    sae_cap.add_argument("--layers", default="0,mid,last")
+    sae_cap.add_argument("--phase", default="exit")
+    sae_cap.add_argument("--heldout-probes", default="parser_validator")
+    sae_cap.add_argument("--holdout-fraction", type=float, default=.4)
+    sae_cap.add_argument("--split-seed", type=int, default=20261022)
+    sae_cap.add_argument("--sae-validation-fraction", type=float, default=.25)
+    sae_cap.add_argument("--max-input-tokens", type=int, default=4096)
+    sae_cap.add_argument("--max-tokens-per-case", type=int, default=64)
+    sae_cap.add_argument("--seed", type=int, default=20261022)
+    sae_cap.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
+    sae_cap.add_argument("--dtype", choices=("auto", "float32", "float16", "bfloat16"), default="auto")
+    sae_cap.add_argument("--allow-download", action="store_true")
+    sae_cap.add_argument("--trust-remote-code", action="store_true")
+    sae_cap.set_defaults(func=command_sae_capture)
+
+    sae_fit = sub.add_parser("sae-fit", help="Train PercInterp TopKSAE checkpoints and validation report")
+    sae_fit.add_argument("--capture", required=True, help="capture-manifest.json generated by sae-capture")
+    sae_fit.add_argument("--output-dir", required=True)
+    sae_fit.add_argument("--n-latents", type=int, default=0, help="Dictionary size (0 means 4x hidden width)")
+    sae_fit.add_argument("--k", type=int, default=8)
+    sae_fit.add_argument("--steps", type=int, default=100)
+    sae_fit.add_argument("--batch-size", type=int, default=32)
+    sae_fit.add_argument("--lr", type=float, default=.0003)
+    sae_fit.add_argument("--seed", type=int, default=20261022)
+    sae_fit.add_argument("--device", choices=("cpu", "cuda", "mps"), default="cpu")
+    sae_fit.set_defaults(func=command_sae_fit)
+
+    sae_map = sub.add_parser("sae-feature-map", help="Bind frozen PercInterp selected nodes to SAE registry")
+    sae_map.add_argument("--registry", required=True)
+    sae_map.add_argument("--selection", required=True)
+    sae_map.add_argument("--output", required=True)
+    sae_map.set_defaults(func=command_sae_feature_map)
 
     return parser
 

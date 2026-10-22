@@ -154,6 +154,21 @@ outstanding. See [the free-generation validation protocol](docs/freegen-validati
 for grading instructions, causal assumptions, and acceptance criteria.
 
 
+
+## PercInterp SAE feature-contribution test (v0.10)
+
+The optional `phb perc-components-plan`, `phb perc-components`, and
+`phb perc-components-report` commands test a **frozen PercInterp-selected
+feature set** at the level of TopK SAE decoder contributions. Candidate ablations
+are compared against an equally strong orthogonal perturbation and equal-budget
+local-degree/random selectors, with completely held-out history seeds and probe
+questions. Only *trusted, SHA-256-pinned local* SAE checkpoints and HF model
+weights are loaded. The current test suite exercises synthetic Torch decoder
+fixtures; pretrained Qwen results are still needed.
+
+[Read the v0.10 feature-ablation protocol](docs/v010-component-ablation.md)
+for the JSON feature-map schema, valid TopK checkpoints, commands and limits.
+
 ## PercInterp crossover (v0.8; optional)
 
 PHB now connects to [MoralityLabAI/PercInterp](https://github.com/MoralityLabAI/percolation-interp)
@@ -180,6 +195,28 @@ phb perc-select --graph examples/percinterp/direct-attribution-SYNTHETIC.json \
 
 See [the complete bridge protocol](docs/percinterp-bridge.md) for actual model
 inputs, frozen controls, and both experimental hypotheses.
+
+## Train-only SAE acquisition (v0.11)
+
+PHB can now collect model-local decoder states from **causal-training seeds and
+technical probes only**, fit the exact PercInterp `TopKSAE` implementation in a
+separate process, and bind the resulting hash-pinned checkpoints to an already
+frozen PercInterp selection manifest. The first step requires **no model**:
+
+```bash
+phb generate --variation seeded_v1 --repetitions 8 --seed 100 \
+  --conditions ordered,tail_matched --phases exit \
+  --probes flaky_ci,parser_validator --output runs/sae-cases.jsonl
+phb sae-capture-plan --input runs/sae-cases.jsonl --output runs/sae-plan.json
+```
+
+With a cached HF checkpoint, run `phb sae-capture`, then `phb sae-fit` to obtain
+reconstruction FVU, latent coverage and locally pinned TopK checkpoints.
+`phb sae-feature-map` connects those checkpoints to **externally measured direct
+attribution** node IDs after `phb perc-select`. PHB does not synthesize graph
+edges from activation correlations. See the
+[full v0.11 protocol](docs/v011-sae-acquisition.md) for commands, data guards,
+and the RTX 5080 pilot budget.
 
 ## Design
 

@@ -41,10 +41,9 @@ jobs:
         run: |
           python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch>=2.2'
           python -m pip install -e '.[test]'
-          python -m pip install 'git+https://github.com/MoralityLabAI/percolation-interp@c0b3f6abf8e847292aaf1e21b8f4b804fd4d8ce0'
       - name: Verify actual forward-hook intervention paths
         run: |
-          python -m pytest tests/test_interventions.py tests/test_sweep.py tests/test_freegen.py tests/test_perc_components.py -q
+          python -m pytest tests/test_interventions.py tests/test_sweep.py tests/test_freegen.py tests/test_perc_components.py tests/test_sae_pipeline.py -q
 
   percinterp-interop:
     name: PercInterp real-library adapter (Python 3.12)
@@ -57,10 +56,16 @@ jobs:
           python-version: "3.12"
       - name: Install PercInterp from MoralityLabAI and PHB
         run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch>=2.2'
           python -m pip install 'git+https://github.com/MoralityLabAI/percolation-interp@c0b3f6abf8e847292aaf1e21b8f4b804fd4d8ce0'
           python -m pip install -e '.[test]'
       - name: Exercise real percolation and holonomy contracts
         run: |
-          python -m pytest tests/test_perc_bridge.py tests/test_perc_holonomy.py tests/test_perc_components.py -q
+          python -m pytest tests/test_perc_bridge.py tests/test_perc_holonomy.py tests/test_perc_components.py tests/test_sae_pipeline.py -q
           phb perc-select --graph examples/percinterp/direct-attribution-SYNTHETIC.json \
             --shuffles 8 --random-controls 2 --output runs/perc-SYNTHETIC-selection.json
+          phb generate --variation seeded_v1 --repetitions 8 --seed 100 \
+            --conditions ordered,tail_matched --phases exit \
+            --probes flaky_ci,parser_validator --output runs/sae-ci-cases.jsonl
+          phb sae-capture-plan --input runs/sae-ci-cases.jsonl \
+            --output runs/sae-ci-plan.json
