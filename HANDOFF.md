@@ -72,3 +72,16 @@ phb blind-report --ratings runs/qwen-pilot-blind-ratings.csv --key runs/qwen-pil
 ```
 
 Read `docs/freegen-validation.md` for detailed ratings, controls, limitations and acceptance tests. Leave private rating keys out of PRs. If no pretrained weights are available, test the logic with fixtures, record that limit, and leave empirical claims pending. Existing toy-forward-hook tests cannot establish a model-level persona effect.
+
+
+## PHB v0.8: PercInterp integration (2026-10-22)
+
+Current implementation: [docs/percinterp-bridge.md](docs/percinterp-bridge.md). PHB now exposes `perc-select`, `perc-audit`, and `perc-holonomy`. Read the doc and tests first. Install `MoralityLabAI/percolation-interp` from its upstream repository on Python >=3.11 before running the real-library adapter tests.
+
+- `perc-select`: Feed validated **direct** VPD/Goodfire component attribution edges into PercInterp's DAG sieve. Freeze the output and compare budget-matched local-degree and random alternatives. The included graph fixture is SYNTHETIC.
+- `perc-audit`: Join frozen component-to-decoder-block mappings to a held-out PHB rank-one sweep. Its statistics concern **decoder blocks**, never individual component necessity. It rejects graph/sweep train-seed mismatch, repeated or missing causal control cells and unequal block budgets.
+- `perc-holonomy`: From matched last-prefix-token hidden states, build rank-r PCA frames on (condition, phase) cells, use PercInterp's polar Procrustes transport, certify overlaps and loops, test gauge invariance, and evaluate a condition-label permutation null. Use seeded_v1 `peak,exit,washout_2` cases; fixed baseline prompts can yield rank-deficient frames.
+
+**Open research obligations:** Run a real cached Qwen model on the RTX 5080, get real signed attribution edges from an independently checked source, freeze graph selectors on training-only histories, compare on held-out seeds/probes, and test whether individual selected SAE/VPD components (as opposed to whole blocks) show incremental causal effects versus local-degree and same-budget random controls. Report null outcomes. There are no pretrained-model findings from this crossover yet.
+
+**First Codex/Claude instruction:** Verify v0.8 GitHub CI and `docs/percinterp-bridge.md`, run `tests/test_perc_bridge.py` and `tests/test_perc_holonomy.py` using the real `percinterp` installation, fix any adapter mismatch, then prioritize a cached-Qwen pilot. Avoid unrequested model downloads or expensive GPU jobs.
