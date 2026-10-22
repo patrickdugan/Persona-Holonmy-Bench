@@ -101,3 +101,22 @@ def test_sweep_report_and_svg_cli(tmp_path):
           "--output", str(svg)])
     assert "<svg" in svg.read_text()
     assert "synthetic-fixture" in svg.read_text()
+
+
+def test_sweep_plan_cli_without_model(tmp_path):
+    from persona_holonomy.cli import main
+    data = tmp_path / "cases.jsonl"
+    main(["generate", "--variation", "seeded_v1", "--repetitions", "6",
+          "--conditions", "ordered,tail_matched", "--phases", "exit",
+          "--probes", "flaky_ci,parser_validator", "--output", str(data)])
+    report = tmp_path / "plan.json"
+    main(["sweep-plan", "--input", str(data), "--layers", "0,last",
+          "--alphas", "0,1", "--sources", "ordered",
+          "--heldout-probes", "parser_validator", "--output", str(report)])
+    obj = json.loads(report.read_text())
+    import hashlib
+    assert obj["input_sha256"] == hashlib.sha256(data.read_bytes()).hexdigest()
+    assert obj["n_test_pairs"] > 0
+    assert obj["train_probe_ids"] == ["flaky_ci"]
+    assert obj["test_probe_ids"] == ["parser_validator"]
+    assert obj["estimated_total_model_forwards"] > 0

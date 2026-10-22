@@ -22,6 +22,12 @@ jobs:
           phb run --backend mock --repetitions 1 --phases exit,washout_2 --output runs/smoke.jsonl
           phb analyze --input runs/smoke.jsonl --output-prefix runs/smoke-report
           phb plot --report runs/smoke-report.json --output runs/smoke.svg
+          phb generate --variation seeded_v1 --repetitions 6 --seed 100 \
+            --conditions ordered,tail_matched --phases exit \
+            --probes flaky_ci,parser_validator --output runs/pilot.jsonl
+          phb sweep-plan --input runs/pilot.jsonl --layers 0,last \
+            --alphas 0,1 --sources ordered --heldout-probes parser_validator \
+            --output runs/pilot-plan.json
   mechanistic:
     name: CPU forward-hook tests (Python 3.12)
     runs-on: ubuntu-latest

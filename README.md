@@ -6,7 +6,7 @@ The motivating question is simple: can a long, playful conversation push a langu
 
 The initial seed is the *AI safety monastery / dungeon RPG* conversation. We make this into a controlled protocol rather than trying to decide whether a model has literally reverted to an older model's personality.
 
-> **Scope of v0.5:** transcript-conditioned behavioral hysteresis; forward-only activation capture; rank-one injection and held-out **projection erasure across preregistered decoder layers and strengths**. Paired norm-matched orthogonal controls, first-token diagnostics, and an SVG layer sweep are included. Geometric holonomy and identification of VPD/SAE features remain research hypotheses.
+> **Scope of v0.6:** transcript-conditioned behavioral hysteresis; forward-only activation capture; rank-one injection and held-out **projection erasure across preregistered decoder layers and strengths**. Paired norm-matched orthogonal controls, first-token diagnostics, unseen technical-probe holdout, exact seed-level sign-flip tests, Holm multiplicity adjustment, and an SVG layer sweep are included. Geometric holonomy and identification of VPD/SAE features remain research hypotheses.
 
 ## Quick start
 
@@ -95,6 +95,31 @@ phb sweep-plot --report runs/sweep-report.json --source ordered \
 ```
 
 The five-seed example is a quick mechanistic shakedown. To estimate population-level effects, rerun with at least 15 distinct seeds, multiple probes, and preregistered layers. The first release remains a PyTorch-hook tested implementation; **no pretrained model causal findings are claimed**. See [the full causal layer sweep protocol](docs/layer-sweep-protocol.md) for equations, costs, controls, and interpretation criteria.
+
+## Unseen technical questions and offline cost preflight (v0.6)
+
+The `--heldout-probes` option separates **technical question content** between direction training and evaluation, in addition to holding out independent scripted-history seeds. The report evaluates candidate-versus-orthogonal specificity with seed-clustered two-sided sign-flip tests and Holm-adjusted familywise p-values across all nonzero-dose cells. Very small pilots lack statistical resolution. See the [v0.6 protocol](docs/heldout-inference-protocol.md).
+
+```bash
+phb generate --variation seeded_v1 --repetitions 8 --seed 100 \
+  --conditions ordered,tail_matched --phases exit \
+  --probes flaky_ci,parser_validator \
+  --output runs/qwen-cases.jsonl
+
+# No inference, model download, or GPU required:
+phb sweep-plan --input runs/qwen-cases.jsonl \
+  --layers 0,mid,last --alphas 0,1 --sources ordered \
+  --heldout-probes parser_validator --output runs/qwen-plan.json
+
+# Then choose a locally cached, supported chat checkpoint:
+phb sweep --model /path/to/local/chat-model \
+  --input runs/qwen-cases.jsonl --layers 0,mid,last \
+  --alphas 0,1 --sources ordered \
+  --heldout-probes parser_validator --device cuda --dtype float16 \
+  --output runs/qwen-sweep.jsonl
+```
+
+The preflight records the input SHA-256 and deterministic train/test seed assignment, plus an estimated number of model forward calls. It cannot predict peak VRAM or timing. Model weights are never downloaded by default; pretrained causal claims require a real open-weight run. A new experiment should freeze its hypotheses and layers before viewing measured outcomes.
 
 ## Design
 

@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from .analysis import _bootstrap_ci
+from .inference import signflip_pvalue, holm_adjust
 from .interventions import (
     CausalProbe, _orthogonal_random, _read_cases, prepare_pairs, select_block,
     split_seeds,
@@ -53,6 +54,99 @@ def split_and_guard(pairs, *, holdout_fraction: float, split_seed: int):
     return train, test
 
 
+
+def _partition_pairs(pairs, *, holdout_fraction: float, split_seed: int,
+                     heldout_probe_ids: tuple[str, ...]):
+    """Canonical train/test split for model runs and offline preflight."""
+    train, test = split_and_guard(pairs, holdout_fraction=holdout_fraction,
+                                  split_seed=split_seed)
+    available = {target["probe_id"] for _, target in pairs}
+    if len(set(heldout_probe_ids)) != len(heldout_probe_ids):
+        raise ValueError("Held-out probe IDs must be unique")
+    if not set(heldout_probe_ids) <= available:
+        raise ValueError("Held-out probes must occur in the input cases")
+    training_probes = available - set(heldout_probe_ids)
+    if not training_probes:
+        raise ValueError("Probe holdout must leave at least one training probe")
+    eval_probes = set(heldout_probe_ids) if heldout_probe_ids else available
+    selected = [(source, target) for source, target in pairs
+                if target["seed"] in test and target["probe_id"] in eval_probes]
+    training = [(source, target) for source, target in pairs
+                if target["seed"] in train and target["probe_id"] in training_probes]
+    if not selected or not training:
+        raise ValueError("Probe/seed split produced an empty training or evaluation set")
+    return train, test, training, selected, training_probes, eval_probes
+
+
+def sweep_plan(*, cases: list[dict[str, Any]], layers: tuple[str, ...],
+               alphas: tuple[float, ...], source_conditions: tuple[str, ...],
+               reference_condition: str = "tail_matched",
+               phases: tuple[str, ...] = ("exit",),
+               holdout_fraction: float = .4, split_seed: int = 20261022,
+               heldout_probe_ids: tuple[str, ...] = (),
+               self_check: bool = True) -> dict[str, Any]:
+    """Offline forward-call count assuming caching in ``run_sweep``.
+
+    Invocations differ greatly in token length. The count is not a FLOP, peak
+    VRAM, elapsed time, or token count estimate.
+    """
+    if not layers or len(set(layers)) != len(layers):
+        raise ValueError("Layers must be nonempty and unique")
+    if not alphas or len(set(alphas)) != len(alphas):
+        raise ValueError("Alphas must be nonempty and unique")
+    if any(not math.isfinite(a) or not 0 <= a <= 1 for a in alphas):
+        raise ValueError("Alphas must be finite and within [0,1]")
+    pairs = prepare_pairs(cases, source_conditions=source_conditions,
+                          target_condition=reference_condition, phases=phases)
+    train, test, training, selected, train_probes, eval_probes = _partition_pairs(
+        pairs, holdout_fraction=holdout_fraction, split_seed=split_seed,
+        heldout_probe_ids=heldout_probe_ids)
+    base_cases = {case["case_id"] for donor, ref in selected for case in (donor, ref)}
+    capture_cases = {case["case_id"] for donor, ref in training for case in (donor, ref)}
+    capture_cases.update(donor["case_id"] for donor, _ in selected)
+    if self_check:
+        capture_cases.update(base_cases)
+    nonzero_alphas = sum(a != 0 for a in alphas)
+    patches_per_layer = len(selected) * 8 * nonzero_alphas
+    identity_per_layer = 2 * len(base_cases) if self_check else 0
+    capture_per_layer = len(capture_cases)
+    baseline_all_layers = 2 * len(base_cases)
+    total_forwards = len(layers) * (
+        patches_per_layer + identity_per_layer + capture_per_layer
+    ) + baseline_all_layers
+    return {
+        "schema_version": 1,
+        "experiment": "causal_sweep_preflight",
+        "n_input_cases": len(cases),
+        "sources": list(source_conditions),
+        "reference_condition": reference_condition,
+        "phases": list(phases),
+        "layers_requested": list(layers),
+        "alphas": list(alphas),
+        "train_seeds": list(train),
+        "test_seeds": list(test),
+        "train_probe_ids": sorted(train_probes),
+        "test_probe_ids": sorted(eval_probes),
+        "probe_holdout": bool(heldout_probe_ids),
+        "n_training_pairs": len(training),
+        "n_test_pairs": len(selected),
+        "n_distinct_baseline_cases": len(base_cases),
+        "n_captures_per_layer": capture_per_layer,
+        "n_self_patch_scoring_forwards_per_layer": identity_per_layer,
+        "n_intervention_scoring_forwards_per_layer": patches_per_layer,
+        "n_baseline_scoring_forwards": baseline_all_layers,
+        "estimated_total_model_forwards": total_forwards,
+        "max_history_characters": max(
+            sum(len(m["content"]) for m in c["messages"]) for c in cases
+        ),
+        "caveats": [
+            "Forward-call counts mirror current caching and are not time or VRAM estimates.",
+            "Maximum history characters excludes serialized chat-template tokens.",
+            "Layer aliases are only validated against a model when actually running the sweep.",
+            "Long teacher-forced scoring passes cost more than short activation-only passes.",
+        ],
+    }
+
 def _signed_effect(mode: str, difference: float) -> float:
     # Positive means more theatrical for injection, less theatrical for erasure.
     return difference if mode == "inject" else -difference
@@ -76,6 +170,7 @@ def run_sweep(
     max_total_tokens: int = 4096,
     device: str = "cpu", model_name: str = "unknown",
     self_check: bool = True,
+    heldout_probe_ids: tuple[str, ...] = (),
 ) -> list[dict[str, Any]]:
     """Evaluate preregistered layers/doses with a single loaded model.
 
@@ -92,17 +187,16 @@ def run_sweep(
         raise ValueError("Alphas must be unique")
     pairs = prepare_pairs(cases, source_conditions=source_conditions,
                           target_condition=reference_condition, phases=phases)
-    train, test = split_and_guard(pairs, holdout_fraction=holdout_fraction,
-                                  split_seed=split_seed)
     model.eval()
-    # Validate duplicate symbolic aliases e.g. 1,last for a two-layer decoder.
+    # Validate aliases that resolve to the same physical decoder block.
     from .interventions import decoder_blocks
     _, blocks = decoder_blocks(model)
     indices = [select_block(name, len(blocks)) for name in layers]
     if len(set(indices)) != len(indices):
         raise ValueError("Layer selection includes a repeated decoder block")
-    selected = [(source, target) for source, target in pairs if target["seed"] in test]
-    training = [(source, target) for source, target in pairs if target["seed"] in train]
+    train, test, training, selected, training_probes, evaluation_probes = _partition_pairs(
+        pairs, holdout_fraction=holdout_fraction, split_seed=split_seed,
+        heldout_probe_ids=heldout_probe_ids)
     baselines: dict[str, dict[str, Any]] = {}
     results: list[dict[str, Any]] = []
 
@@ -217,6 +311,9 @@ def run_sweep(
                             "phase": tested_case["phase"],
                             "training_seeds": list(train),
                             "test_seeds": list(test),
+                            "training_probe_ids": sorted(training_probes),
+                            "evaluation_probe_ids": sorted(evaluation_probes),
+                            "probe_holdout": bool(heldout_probe_ids),
                             "direction_l2_norm": amplitude if mode == "inject" else float(runner.torch.linalg.vector_norm(direction)),
                             "patch_l2_norm": alpha * shift_norm,
                             "signed_projection": amplitude if mode == "erase" else None,
@@ -241,6 +338,14 @@ def sweep_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     identity = {(r["model"], r["tokenizer"], r["reference_condition"]) for r in rows}
     if len(identity) != 1:
         raise ValueError("Sweep report requires one model, tokenizer and reference condition")
+    probe_settings = {
+        (tuple(r.get("training_probe_ids", ())),
+         tuple(r.get("evaluation_probe_ids", ())),
+         bool(r.get("probe_holdout", False))) for r in rows
+    }
+    if len(probe_settings) != 1:
+        raise ValueError("Sweep report cannot mix probe holdout configurations")
+    train_probes, eval_probes, probe_holdout = next(iter(probe_settings))
     observed = set()
     indexed = {}
     for row in rows:
@@ -285,6 +390,7 @@ def sweep_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
             if tails:
                 later.append(statistics.mean(tails))
         layer, mode, source, phase, alpha = key
+        inference = signflip_pvalue(differences)
         summaries.append({
             "layer": layer, "mode": mode, "direction_source": source,
             "phase": phase, "alpha": alpha,
@@ -294,9 +400,20 @@ def sweep_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "mean_orthogonal_null": statistics.mean(nulls),
             "mean_paired_specificity": statistics.mean(differences),
             "seed_bootstrap_95pct_ci": _bootstrap_ci(differences),
+            "paired_signflip_p_value": inference["p_value"],
+            "paired_signflip_method": inference["method"],
+            "paired_signflip_null_draws": inference["null_draws"],
+            "holm_familywise_p_value": None,
             "mean_first_token_oriented_effect": statistics.mean(first),
             "mean_later_token_oriented_effect": statistics.mean(later) if later else None,
         })
+    # Register each nonzero layer/mode/source/phase/dose cell as one hypothesis.
+    # alpha=0 is an identity test and excluded from multiplicity correction.
+    hypothesis_indices = [i for i, row in enumerate(summaries) if row["alpha"] > 0]
+    adjusted = holm_adjust([summaries[i]["paired_signflip_p_value"]
+                            for i in hypothesis_indices])
+    for i, value in zip(hypothesis_indices, adjusted):
+        summaries[i]["holm_familywise_p_value"] = value
     alphas = sorted({r["alpha"] for r in rows})
     zero = [r for r in rows if r["alpha"] == 0]
     zero_error = max((abs(r["effect"]) for r in zero), default=None)
@@ -312,6 +429,11 @@ def sweep_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "n_records": len(rows),
         "n_test_seeds": len({r["seed"] for r in rows}),
         "n_training_seeds": len(rows[0]["training_seeds"]),
+        "training_probe_ids": list(train_probes),
+        "evaluation_probe_ids": list(eval_probes),
+        "probe_holdout": probe_holdout,
+        "hypothesis_family_size": len(hypothesis_indices),
+        "hypothesis_family": "all reported layer/mode/source/phase/alpha>0 contrasts",
         "max_abs_self_patch_delta": max_abs_self if n_self else None,
         "max_abs_alpha_zero_effect": zero_error,
         "identity_check_passed_1e_3": max_abs_self <= 1e-3 if n_self else None,
@@ -320,9 +442,12 @@ def sweep_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "Residual-stream rank-one projection is not SAE-feature ablation or VPD attribution.",
             "All cases use fixed scripted assistant turns; these are not interactive model rollouts.",
             "Style readout uses different completion wordings and lengths; prefer external response grading for validation.",
-            "Training and evaluation transcripts differ by seed, but share genre, probes, and templated syntax.",
+            "Training and evaluation transcripts differ by seed and share genre and templated syntax; probes may repeat unless held out.",
             "A single last-prefix-token hook primarily changes the first suffix prediction in final blocks.",
-            "Descriptive confidence intervals resample transcript seeds, not tokens or probes.",
+            "Bootstrap intervals resample transcript seeds; sign-flips operate on seed-averaged paired effects.",
+            "Exact sign-flip p-values assume exchangeability of signs under the null, which must be justified for the design.",
+            "Holm adjustment covers all reported nonzero-dose contrasts and does not rescue post-hoc layer selection.",
+            "Use --heldout-probes for entirely unseen technical readout questions; seeded holdout alone reuses probe text.",
             "Inspect unregistered layers as exploratory; a best-layer finding requires a fresh validation split.",
             "No model consciousness, model-identity switch, or geometric holonomy is implied.",
         ],
@@ -334,11 +459,13 @@ def sweep_markdown(report: dict[str, Any]) -> str:
             f"Model: `{report['model']}`; reference: `{report['reference_condition']}`",
             f"Layers: {report['layers']}; strengths: {report['alphas']}",
             f"Training seeds: {report['n_training_seeds']}; held-out: {report['n_test_seeds']}",
+            f"Train probes: {report['training_probe_ids']}; evaluation probes: {report['evaluation_probe_ids']}; probe holdout: {report['probe_holdout']}",
+            f"Holm multiplicity family: {report['hypothesis_family_size']} nonzero-dose comparisons",
             f"Identity max |Δ|: {report['max_abs_self_patch_delta']}; alpha-zero max |Δ|: {report['max_abs_alpha_zero_effect']}",
             "", "Positive **oriented effect** means more Gothic preference after injection or less after erasure.",
             "Specificity subtracts the norm-matched orthogonal null on the same seed/probe.", "",
-            "| Layer | Mode | Donor | Phase | α | Seeds | Pairs | Effect | Null | Specificity | 95% CI | First-token effect | Later-token effect |",
-            "|---:|---|---|---|---:|---:|---:|---:|---:|---:|---|---:|---:|",
+            "| Layer | Mode | Donor | Phase | α | Seeds | Pairs | Effect | Null | Specificity | 95% CI | First-token effect | Later-token effect | Sign-flip p | Holm p |",
+            "|---:|---|---|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|",
            ]
     for s in report["summaries"]:
         tail = s["mean_later_token_oriented_effect"]
@@ -347,7 +474,9 @@ def sweep_markdown(report: dict[str, Any]) -> str:
                     f"{s['mean_orthogonal_null']:+.4f} | {s['mean_paired_specificity']:+.4f} | "
                     f"{s['seed_bootstrap_95pct_ci'] or 'n/a'} | "
                     f"{s['mean_first_token_oriented_effect']:+.4f} | "
-                    f"{tail if tail is not None else 'n/a'} |")
+                    f"{tail if tail is not None else 'n/a'} | "
+                    f"{s['paired_signflip_p_value']:.4f} | "
+                    f"{s['holm_familywise_p_value'] if s['holm_familywise_p_value'] is not None else 'n/a'} |")
     text.extend(["", "## Interpretation limits", ""])
     text.extend(f"- {limitation}" for limitation in report["limitations"])
     return "\n".join(text) + "\n"

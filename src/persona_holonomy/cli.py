@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 import time
@@ -11,8 +12,8 @@ from typing import Sequence
 
 from .analysis import analyze, read_jsonl, to_markdown
 from .activations import activation_report, capture
-from .interventions import intervene_hf, intervention_report, intervention_markdown
-from .sweep import sweep_hf, sweep_report, sweep_markdown
+from .interventions import intervene_hf, intervention_report, intervention_markdown, _read_cases
+from .sweep import sweep_hf, sweep_report, sweep_markdown, sweep_plan
 from .sweep_plot import render_sweep_svg
 from .backends import make_backend
 from .protocol import CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
@@ -201,9 +202,34 @@ def command_sweep(args: argparse.Namespace) -> None:
         device=args.device, dtype=args.dtype,
         allow_download=args.allow_download, trust_remote_code=args.trust_remote_code,
         self_check=not args.skip_self_check,
+        heldout_probe_ids=tuple(x.strip() for x in args.heldout_probes.split(",") if x.strip()),
     )
     print(f"Wrote {count} held-out causal sweep observations to {args.output}")
 
+
+def command_sweep_plan(args: argparse.Namespace) -> None:
+    """Estimate forward invocations and freeze the split before model loading."""
+    path = Path(args.input)
+    cases = _read_cases(path)
+    report = sweep_plan(
+        cases=cases,
+        layers=tuple(x.strip() for x in args.layers.split(",") if x.strip()),
+        alphas=tuple(float(x.strip()) for x in args.alphas.split(",") if x.strip()),
+        source_conditions=tuple(x.strip() for x in args.sources.split(",") if x.strip()),
+        reference_condition=args.reference,
+        phases=tuple(x.strip() for x in args.phases.split(",") if x.strip()),
+        holdout_fraction=args.holdout_fraction,
+        split_seed=args.split_seed,
+        heldout_probe_ids=tuple(x.strip() for x in args.heldout_probes.split(",") if x.strip()),
+        self_check=not args.skip_self_check,
+    )
+    report["input_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(f"Estimated {report['estimated_total_model_forwards']} model forward calls "
+          f"across {len(report['layers_requested'])} layer(s), "
+          f"{report['n_test_pairs']} held-out pairs. Wrote {output}")
 
 def command_sweep_report(args: argparse.Namespace) -> None:
     rows = [json.loads(line) for line in Path(args.input).read_text(encoding="utf-8").splitlines()
@@ -227,7 +253,7 @@ def command_sweep_plot(args: argparse.Namespace) -> None:
 
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="phb", description="Persona Holonomy Bench, version 0.5"
+        prog="phb", description="Persona Holonomy Bench, version 0.6"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -327,6 +353,8 @@ def make_parser() -> argparse.ArgumentParser:
                        help="Zero-based decoder blocks: e.g. 0,4,last (mid is accepted)")
     sweep.add_argument("--alphas", default="0,0.5,1", help="Comma-separated strengths within [0,1]")
     sweep.add_argument("--sources", default="ordered,neutral")
+    sweep.add_argument("--heldout-probes", default="",
+                       help="CSV readout IDs excluded from direction training; must be present in JSONL")
     sweep.add_argument("--reference", default="tail_matched")
     sweep.add_argument("--phases", default="exit")
     sweep.add_argument("--holdout-fraction", type=float, default=.4)
@@ -339,6 +367,20 @@ def make_parser() -> argparse.ArgumentParser:
     sweep.add_argument("--trust-remote-code", action="store_true")
     sweep.add_argument("--skip-self-check", action="store_true")
     sweep.set_defaults(func=command_sweep)
+
+    plan = sub.add_parser("sweep-plan", help="Offline split audit and GPU forward-call estimate")
+    plan.add_argument("--input", required=True, help="Seed-varied case JSONL")
+    plan.add_argument("--output", default="runs/sweep-plan.json")
+    plan.add_argument("--layers", default="0,mid,last")
+    plan.add_argument("--alphas", default="0,0.5,1")
+    plan.add_argument("--sources", default="ordered,neutral")
+    plan.add_argument("--reference", default="tail_matched")
+    plan.add_argument("--phases", default="exit")
+    plan.add_argument("--heldout-probes", default="")
+    plan.add_argument("--holdout-fraction", type=float, default=.4)
+    plan.add_argument("--split-seed", type=int, default=20261022)
+    plan.add_argument("--skip-self-check", action="store_true")
+    plan.set_defaults(func=command_sweep_plan)
 
     sr = sub.add_parser("sweep-report", help="Paired candidate-vs-random causal specificity")
     sr.add_argument("--input", required=True)

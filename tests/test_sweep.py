@@ -115,3 +115,75 @@ def test_sweep_svg_render_and_missing_combination():
     assert "inject" in xml and "erase" in xml
     with pytest.raises(ValueError, match="No sweep rows"):
         render_sweep_svg(demo, phase="washout_2")
+
+
+def test_unseen_probe_holdout_changes_training_and_evaluation_sets():
+    model, tokenizer = toy_model()
+    # Each seed has two distinct technical questions; evaluation sees parser_validator only.
+    source = [x.to_dict() for x in build_cases(
+        repetitions=6, seed=71, variation="seeded_v1",
+        conditions=("ordered", "tail_matched"), phases=("exit",),
+        probes=(PROBES[0], PROBES[1]),
+    )]
+    rows = run_sweep(cases=source, model=model, tokenizer=tokenizer,
+                     layers=("0",), alphas=(0., 1.),
+                     source_conditions=("ordered",),
+                     heldout_probe_ids=("parser_validator",),
+                     phases=("exit",), max_total_tokens=256,
+                     model_name="toy", split_seed=33,
+                     self_check=False)
+    assert {r["probe_id"] for r in rows} == {"parser_validator"}
+    assert all(r["training_probe_ids"] == ["flaky_ci"] for r in rows)
+    assert all(r["evaluation_probe_ids"] == ["parser_validator"] for r in rows)
+    assert all(r["probe_holdout"] for r in rows)
+    report = sweep_report(rows)
+    assert report["training_probe_ids"] == ["flaky_ci"]
+    assert report["evaluation_probe_ids"] == ["parser_validator"]
+    assert report["probe_holdout"] is True
+    assert report["hypothesis_family_size"] == 2  # Inject and erase; alpha=0 excluded.
+    for s in report["summaries"]:
+        assert s["paired_signflip_method"] == "exact_sign_flip"
+        assert 0 <= s["paired_signflip_p_value"] <= 1
+        assert (s["holm_familywise_p_value"] is None) == (s["alpha"] == 0)
+    assert "Train probes" in sweep_markdown(report)
+
+
+def test_probe_holdout_validation():
+    model, tokenizer = toy_model()
+    kwargs = dict(cases=cases(), model=model, tokenizer=tokenizer,
+                  layers=("0",), alphas=(0., 1.),
+                  source_conditions=("ordered",), phases=("exit",),
+                  max_total_tokens=256)
+    with pytest.raises(ValueError, match="at least one training"):
+        run_sweep(**kwargs, heldout_probe_ids=("flaky_ci",))
+    with pytest.raises(ValueError, match="must occur"):
+        run_sweep(**kwargs, heldout_probe_ids=("missing_probe",))
+    with pytest.raises(ValueError, match="unique"):
+        run_sweep(**kwargs, heldout_probe_ids=("flaky_ci", "flaky_ci"))
+
+
+def test_sweep_plan_matches_actual_forward_invocations_without_model():
+    from persona_holonomy.sweep import sweep_plan
+    c = [x.to_dict() for x in build_cases(
+        repetitions=6, seed=71, variation="seeded_v1",
+        conditions=("ordered", "tail_matched"), phases=("exit",),
+        probes=(PROBES[0], PROBES[1]),
+    )]
+    plan = sweep_plan(cases=c, layers=("0", "last"), alphas=(0., 1.),
+                      source_conditions=("ordered",), phases=("exit",),
+                      split_seed=33, heldout_probe_ids=("parser_validator",))
+    assert plan["n_training_pairs"] == 4
+    assert plan["n_test_pairs"] == 2
+    # 4 train pair captures + 2 test donors + 2 test references (self-check).
+    assert plan["n_captures_per_layer"] == 12
+    assert plan["n_self_patch_scoring_forwards_per_layer"] == 8
+    assert plan["n_intervention_scoring_forwards_per_layer"] == 16
+    assert plan["n_baseline_scoring_forwards"] == 8
+    assert plan["estimated_total_model_forwards"] == 80
+    assert plan["probe_holdout"]
+    without_check = sweep_plan(cases=c, layers=("0", "last"),
+                               alphas=(0., 1.), source_conditions=("ordered",),
+                               phases=("exit",), split_seed=33,
+                               heldout_probe_ids=("parser_validator",),
+                               self_check=False)
+    assert without_check["estimated_total_model_forwards"] < 80
