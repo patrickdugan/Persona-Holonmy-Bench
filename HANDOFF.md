@@ -1,0 +1,54 @@
+# Agent handoff: Qwen causal pilot (2026-10-22)
+
+**Repository:** https://github.com/patrickdugan/Persona-Holonmy-Bench  
+**Current software:** PHB v0.6.0, `main` (starting commit `aadd1f1dd2953d0767295aefdbeff3896a9cc0ec`).  
+**Owner's next action:** Hand this repository to Claude Code or Codex on a Windows workstation with an RTX 5080 16 GB GPU.  
+**Priority:** Run one scientifically interpretable *small* open-weight pilot before expanding the feature work.  
+**License / data boundary:** MIT, public source and synthetic scripted conversation data. Keep credentials, proprietary transcripts, and potentially infohazardous material out of the repo.
+
+## Research question and status
+
+Does a conversation-conditioned, rank-one residual direction learned from ordered vs. tail-matched persona induction histories causally shift a held-out model's preference for theatrical versus ordinary continuations on *unseen technical questions*?
+
+Versions 0.1–0.6 include transcript controls, activation capture, interventions, layer sweeps, seed-distinct histories, unseen-probe holdout, exact sign-flip inference, and offline cost preflight. The current code has been tested with mock responses and small PyTorch decoder fixtures. **No pretrained Qwen intervention result has been obtained yet.** The nickname “holonomy” is a hypothesis; transcript path dependence is insufficient to establish geometric holonomy, and the rank-one mean difference is not yet a VPD/SAE feature.
+
+Read first: `README.md`, `docs/heldout-inference-protocol.md`, `docs/layer-sweep-protocol.md`, `docs/intervention-protocol.md`, and `docs/vpd-roadmap.md`.
+
+## Work order
+
+1. Inspect `git status` and `git log -3`; work on a feature branch and avoid overwriting any intervening commits. Review the actual `phb --help` and command-specific help, which take precedence over copied commands.
+2. Verify Python, PyTorch, Transformers, CUDA, driver, and free VRAM. Run `python -m pip install -e '.[test,mechanistic]'` and `python -m pytest`. Record versions, GPU name, and any compatibility failures. Restrict downloads and model execution to trusted checkpoints.
+3. Select an **already available local Hugging Face causal chat checkpoint** that fits 16 GB VRAM, preferably a small Qwen instruct model. The `phb sweep` HF runner expects decoder blocks and a chat template. Ollama/GGUF models cannot be passed as HF checkpoint paths. If downloading is required, obtain explicit permission before any large download.
+4. Generate and audit cases, then run the offline preflight:
+   ```powershell
+   phb generate --variation seeded_v1 --repetitions 8 --seed 100 --conditions ordered,tail_matched --phases exit --probes flaky_ci,parser_validator --output runs/qwen-pilot-cases.jsonl
+   phb sweep-plan --input runs/qwen-pilot-cases.jsonl --sources ordered --layers 0,mid,last --alphas 0,1 --heldout-probes parser_validator --output runs/qwen-pilot-plan.json
+   ```
+   Inspect the JSON plan for input digest, distinct training/test seeds, held-out probe separation, layers, and estimated forwards before using GPU.
+5. Run the smallest supported CUDA sweep, using a path to the *actual cached HF checkpoint*:
+   ```powershell
+   phb sweep --model "C:\path\to\local\HF-chat-checkpoint" --input runs/qwen-pilot-cases.jsonl --sources ordered --layers 0,mid,last --alphas 0,1 --heldout-probes parser_validator --phases exit --device cuda --dtype float16 --max-total-tokens 1536 --output runs/qwen-pilot-sweep.jsonl
+   phb sweep-report --input runs/qwen-pilot-sweep.jsonl --output-prefix runs/qwen-pilot-report
+   phb sweep-plot --report runs/qwen-pilot-report.json --source ordered --phase exit --alpha 1 --output runs/qwen-pilot.svg
+   ```
+   If GPU OOM occurs, reduce `--max-total-tokens` only if the needed context remains intact, or choose a smaller checkpoint/shorter pilot. Record any truncation and never silently convert a failed experiment into a partial result. Check that `--layers` accepts `mid` on the installed build.
+6. Check controls before interpreting effects: alpha=0 identity, self-transplant identity where applicable, seed and probe isolation, same-norm orthogonal null, and candidate/erasure sign orientation. Inspect first-token and later-token margins separately. Keep forced-continuation scores distinct from free-generation behavior.
+7. Save a compact `runs/README.md` or `reports/qwen-pilot.md` with checkpoint name and immutable revision/hash, exact commands, source commit, data SHA-256, package versions, GPU/VRAM, token counts, runtime, exclusions, plots, nulls, uncertainties, and links to artifacts. Summarize negative/null results too. Avoid committing large weights or raw full activations.
+
+## Acceptance gates
+
+- Local tests pass; the same workflow passes CI after the PR.
+- Preflight split is recorded and no train/eval prompt or seed leakage is detected.
+- At least one *real pretrained checkpoint* produces saved baseline, matched null, candidate injection, and projection-erasure outcomes across preselected layers.
+- Outputs include the first-token/later-token decomposition, effect sizes, paired seed-level statistics, and multiplicity disclosure.
+- Run is reproducible from scripts and pinned checkpoint revision. Report **pilot only**, since an eight-seed split leaves too few held-out seeds for strong significance claims.
+
+## After pilot
+
+If the effect is measurable beyond the first token, preregister ~30 seed-varied histories, fresh technical probe families, a new validation split, and an independently scored free-generation test. If it is absent or null-matched, inspect transcript-token confounds, probe wording, prompt truncation, hook positions, and nonlinear/distributed directions before increasing GPU spend. Only after replication consider SAE dictionaries, VPD factorization, or a mathematically defined state-transport/holonomy experiment.
+
+## Deliverables for the next agent
+
+A small PR containing any necessary compatibility fixes, tests, a reproducible run configuration, the pilot report and figure (if obtained), and clear caveats. Link the exact GitHub Actions run. Make no claims about GPT-4.1 personality reactivation, consciousness, or model-internal holonomy from style scores.
+
+**Suggested first message to Codex/Claude:** “Read `HANDOFF.md` and the PHB v0.6 protocols. Run tests and preflight first; then conduct the small cached-HF-Qwen CUDA pilot on my RTX 5080. Keep train/test probes disjoint, retain all null controls, write a reproducible report, and open a PR. Avoid GPU-heavy runs or model downloads until the preflight is reviewed.”
