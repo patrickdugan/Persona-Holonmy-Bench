@@ -111,7 +111,7 @@ PROBES = (
     ),
 )
 
-CONDITIONS = ("ordered", "permuted", "neutral")
+CONDITIONS = ("ordered", "permuted", "tail_matched", "neutral")
 PHASES = ("baseline", "warmup", "absurd", "peak", "exit", "washout_1", "washout_2")
 PHASE_LENGTHS = {
     "baseline": 0,
@@ -147,6 +147,10 @@ def stages_for(condition: str, seed: int) -> tuple[Stage, ...]:
         return INDUCTION
     if condition == "neutral":
         return NEUTRAL
+    if condition == "tail_matched":
+        # A strict recency control: the final gothic pair and its absolute
+        # location are identical to 'ordered'; only the first two swap.
+        return (INDUCTION[1], INDUCTION[0], INDUCTION[2])
     if condition == "permuted":
         rng = random.Random(seed)
         indices = list(range(len(INDUCTION)))

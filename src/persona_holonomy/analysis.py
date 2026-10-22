@@ -164,13 +164,13 @@ def analyze(records: list[dict[str, Any]]) -> dict[str, Any]:
 
     comparisons = []
     for phase in ("peak", "exit", "washout_1", "washout_2"):
-        for right in ("permuted", "neutral"):
+        for right in ("tail_matched", "permuted", "neutral"):
             effect = paired_effect(rows, phase=phase, left="ordered", right=right)
             if effect is not None:
                 comparisons.append(effect)
 
     closures = []
-    for condition in ("ordered", "permuted", "neutral"):
+    for condition in ("ordered", "tail_matched", "permuted", "neutral"):
         for phase in ("peak", "exit", "washout_1", "washout_2"):
             effect = closure_effect(rows, condition=condition, phase=phase)
             if effect is not None:
@@ -178,7 +178,7 @@ def analyze(records: list[dict[str, Any]]) -> dict[str, Any]:
 
     difference_in_differences = []
     for phase in ("peak", "exit", "washout_1", "washout_2"):
-        for right in ("permuted", "neutral"):
+        for right in ("tail_matched", "permuted", "neutral"):
             effect = recovery_did(rows, phase=phase, right=right)
             if effect is not None:
                 difference_in_differences.append(effect)

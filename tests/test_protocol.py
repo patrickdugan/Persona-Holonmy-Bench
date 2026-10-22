@@ -30,6 +30,17 @@ def test_order_control_same_exact_induction_pairs_at_peak_and_exit():
             assert x != y
 
 
+def test_tail_matched_keeps_final_induction_stage_and_position():
+    for seed in (41, 42, 43):
+        ordered = stages_for("ordered", seed)
+        control = stages_for("tail_matched", seed)
+        assert Counter(ordered) == Counter(control)
+        assert ordered[-1] == control[-1]
+        assert ordered[:2] == (control[1], control[0])
+        assert history_stages("ordered", "exit", seed)[-1] == history_stages(
+            "tail_matched", "exit", seed)[-1]
+
+
 def test_phases_extend_by_one_scripted_pair():
     for condition in CONDITIONS:
         for phase, length in PHASE_LENGTHS.items():
@@ -48,7 +59,7 @@ def test_invalid_inputs():
 
 def test_case_count_unique_keys_and_history_character_measure():
     cases = list(build_cases(repetitions=2, probes=PROBES[:2]))
-    assert len(cases) == 2 * 2 * 3 * 4
+    assert len(cases) == 2 * 2 * 4 * 4
     assert len({c.case_id for c in cases}) == len(cases)
     for case in cases:
         assert case.history_chars == sum(len(m["content"]) for m in case.messages[1:-1])

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .analysis import analyze, read_jsonl, to_markdown
+from .activations import activation_report, capture
 from .backends import make_backend
 from .protocol import CONDITIONS, PHASES, PROBES, build_cases
 from .plotting import render_svg
@@ -135,9 +136,29 @@ def command_plot(args: argparse.Namespace) -> None:
     print(f"Wrote SVG plot to {output}")
 
 
+def command_capture(args: argparse.Namespace) -> None:
+    count = capture(
+        input_path=args.input, output_path=args.output, model_name=args.model,
+        layers=args.layers, device=args.device, dtype=args.dtype,
+        allow_download=args.allow_download, trust_remote_code=args.trust_remote_code,
+        max_input_tokens=args.max_input_tokens, max_cases=args.max_cases,
+    )
+    print(f"Saved {count} full hidden-state records to {args.output}")
+
+
+def command_activation_report(args: argparse.Namespace) -> None:
+    rows = [json.loads(line) for line in Path(args.input).read_text(encoding="utf-8").splitlines()
+            if line.strip()]
+    report = activation_report(rows)
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(f"Saved descriptive activation comparisons to {output}")
+
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="phb", description="Persona Holonomy Bench, version 0.1"
+        prog="phb", description="Persona Holonomy Bench, version 0.3"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -176,6 +197,29 @@ def make_parser() -> argparse.ArgumentParser:
     plot.add_argument("--report", required=True, help="Path to phb analyze JSON report")
     plot.add_argument("--output", default="runs/trajectory.svg")
     plot.set_defaults(func=command_plot)
+
+    cap = sub.add_parser("capture", help="Record optional open-weight hidden-state vectors")
+    cap.add_argument("--model", required=True,
+                     help="Local/cached Hugging Face chat model or explicit model ID")
+    cap.add_argument("--input", required=True, help="Cases JSONL from phb generate")
+    cap.add_argument("--output", default="runs/activations.jsonl")
+    cap.add_argument("--layers", default="last", help="Hidden-state indexes, e.g. 0,8,last")
+    cap.add_argument("--dtype", choices=("auto", "float32", "float16", "bfloat16"),
+                     default="auto")
+    cap.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"),
+                     default="auto")
+    cap.add_argument("--max-input-tokens", type=int, default=4096)
+    cap.add_argument("--max-cases", type=int, default=None)
+    cap.add_argument("--allow-download", action="store_true",
+                     help="Opt in to contacting model hub for missing weights")
+    cap.add_argument("--trust-remote-code", action="store_true",
+                     help="Opt in to executing custom code supplied by model")
+    cap.set_defaults(func=command_capture)
+
+    act = sub.add_parser("activation-report", help="Compare matched hidden-state vectors")
+    act.add_argument("--input", required=True, help="Output JSONL from phb capture")
+    act.add_argument("--output", default="runs/activation-report.json")
+    act.set_defaults(func=command_activation_report)
     return parser
 
 

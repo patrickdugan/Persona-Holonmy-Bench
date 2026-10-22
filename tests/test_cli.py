@@ -12,7 +12,7 @@ def test_end_to_end_mock(tmp_path):
             "--probes", "flaky_ci,parser_validator"]
     main(["generate", *args, "--output", str(gen_path)])
     cases = [json.loads(line) for line in gen_path.read_text().splitlines()]
-    assert len(cases) == 3 * 3 * 2
+    assert len(cases) == 4 * 3 * 2
     main(["run", *args, "--backend", "mock", "--output", str(run_path)])
     rows = [json.loads(line) for line in run_path.read_text().splitlines()]
     assert len(rows) == len(cases)
@@ -20,7 +20,7 @@ def test_end_to_end_mock(tmp_path):
     main(["analyze", "--input", str(run_path), "--output-prefix", str(report_prefix)])
     report = json.loads(Path(str(report_prefix) + ".json").read_text())
     assert report["synthetic"]
-    assert len(report["comparisons"]) == 6
+    assert len(report["comparisons"]) == 9
     assert Path(str(report_prefix) + ".md").exists()
 
 

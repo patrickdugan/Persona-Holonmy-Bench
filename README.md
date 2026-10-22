@@ -6,7 +6,7 @@ The motivating question is simple: can a long, playful conversation push a langu
 
 The initial seed is the *AI safety monastery / dungeon RPG* conversation. We make this into a controlled protocol rather than trying to decide whether a model has literally reverted to an older model's personality.
 
-> **Scope of v0.2:** black-box behavioral probes of scripted conversation histories, an order-matched control, a neutral-history control, recovery checkpoints, local inference adapters, and paired descriptive analysis. No internal-activation measurement is claimed. Geometric holonomy is a research hypothesis requiring a precise transport operator and causal validation.
+> **Scope of v0.3:** black-box behavioral probes of scripted conversation histories, an order-matched control, a neutral-history control, recovery checkpoints, local inference adapters, and paired descriptive analysis. No internal-activation measurement is claimed. Geometric holonomy is a research hypothesis requiring a precise transport operator and causal validation.
 
 ## Quick start
 
@@ -60,19 +60,35 @@ Each case has an identical system instruction and a held-out **neutral technical
 |---|---|
 | `ordered` | Warm-up joke → absurd institutional satire → gothic fantasy scene → exit instruction → up to two neutral washout turns |
 | `permuted` | Exactly the same three induction user/assistant pairs in another order, followed by identical exit and washout turns |
+| `tail_matched` | Same three induction turns as `ordered`; first two swapped while the final gothic turn stays fixed, controlling the strongest recency confound |
 | `neutral` | Three everyday technical exchanges of similar size, followed by identical exit and washout turns |
 
 We probe the model independently at checkpoints `baseline`, `warmup`, `absurd`, `peak`, `exit`, `washout_1`, `washout_2`. This isolates each probe from subsequent prefixes. The **post-exit** contrast of `ordered` against `permuted` holds the induction-text multiset fixed, testing whether sequence order matters. The `neutral` condition helps diagnose history length and genre exposure; the baseline is a reference with no history.
 
 The assistant messages in the history are fixed scripts. The benchmark therefore tests *response conditioning on transcript content*, and not whether the evaluated model itself would have generated the earlier replies. Add interactive rollouts as a later experiment.
 
-The default run executes 3 conditions × 4 phases × 2 probes × 1 seed = **24 generations**. Inference calls execute in a seeded randomized order to reduce time and backend-drift artifacts; add `--sequential` to disable randomization. Use `--execution-seed` to regenerate the exact call order. Use `--repetitions 5` for a first exploratory set; use more distinct prompts and seeds for publication-quality work.
+The default run executes 4 conditions × 4 phases × 2 probes × 1 seed = **32 generations**. Inference calls execute in a seeded randomized order to reduce time and backend-drift artifacts; add `--sequential` to disable randomization. Use `--execution-seed` to regenerate the exact call order. Use `--repetitions 5` for a first exploratory set; use more distinct prompts and seeds for publication-quality work.
 
 ## Outputs
 
-`run` emits JSONL with `case_id`, condition, phase, seed, full transcript, prompt-size proxy, model/backend details, generation metadata, and output. `analyze` emits JSON and Markdown group summaries, genre-carryover features, seed-clustered paired contrasts, **baseline-to-recovery closure changes**, and **paired difference-in-differences** against the order-matched control. Baseline-to-recovery differences only appear when the run includes `baseline`, and are behavioral measures rather than differential-geometric holonomy. `plot` renders the measured trajectory as a dependency-free SVG. A confidence interval is omitted with fewer than five distinct seeds. The index is a hand-designed lexical heuristic and should be validated against blind human ratings.
+`run` emits JSONL with `case_id`, condition, phase, seed, full transcript, prompt-size proxy, model/backend details, generation metadata, and output. `analyze` emits JSON and Markdown group summaries, genre-carryover features, seed-clustered paired contrasts, **baseline-to-recovery closure changes**, and **paired difference-in-differences** against order and last-turn-matched controls. Baseline-to-recovery differences only appear when the run includes `baseline`, and are behavioral measures rather than differential-geometric holonomy. `plot` renders the measured trajectory as a dependency-free SVG. A confidence interval is omitted with fewer than five distinct seeds. The index is a hand-designed lexical heuristic and should be validated against blind human ratings.
 
 **Interpretation boundaries:** Responses that sound like GPT-4.1 are not proof of GPT-4.1 internals in another model. Prompt history can explain apparent persistence in a stateless transformer; calling this "holonomy" demands a defined state space, transport rule, closed paths, and appropriate controls. See [experiment design](docs/experiment-design.md) and [VPD roadmap](docs/vpd-roadmap.md).
+
+## Capture open-weight hidden states (optional)
+
+For a Hugging Face model already available locally, capture the entire scripted-prefix hidden-state vector at the final input token. The command runs forward passes with **no generated continuations**. See [activation protocol](docs/activation-protocol.md) for model/version and interpretation cautions.
+
+```bash
+pip install -e '.[mechanistic]'
+phb generate --repetitions 5 --output runs/cases.jsonl
+phb capture --model /path/to/cached/model --input runs/cases.jsonl \
+  --layers 0,8,last --max-cases 16 --output runs/activations.jsonl
+phb activation-report --input runs/activations.jsonl \
+  --output runs/activation-report.json
+```
+
+The model and tokenizer must already be local/cached unless `--allow-download` is supplied; arbitrary model Python execution also requires the separate `--trust-remote-code` flag. Hidden-state cosine differences can identify candidates for further causal testing, but they do not constitute VPD decomposition or geometric holonomy.
 
 ## Roadmap
 
@@ -80,6 +96,8 @@ The default run executes 3 conditions × 4 phases × 2 probes × 1 seed = **24 g
 - [x] Ollama and OpenAI-compatible local inference adapters
 - [x] Transparent style features, paired contrasts, run metadata, CI
 - [x] Seeded randomized execution and paired behavioral closure / difference-in-differences
+- [x] Last-turn-matched transcript control
+- [x] Optional open-weight last-input-token hidden-state capture and descriptive comparisons
 - [ ] Blind human rater protocol and richer independent hold-out probes
 - [ ] Interactive model-generated trajectories
 - [ ] Open-weight residual stream and SAE activation capture

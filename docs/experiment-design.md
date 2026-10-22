@@ -70,3 +70,11 @@ D_{s,p,t} = C_{\mathrm{ordered},s,p,t} - C_{\mathrm{permuted},s,p,t}.
 The analysis aggregates paired probe differences within seeds, then bootstraps seeds. This partially addresses baseline imbalance but does not remove differences in the positional distribution of prior text. In particular, these are **linguistic response metrics** and are not estimates of a connection, parallel transport, or holonomy on a learned state space.
 
 Generation is now randomized using a recorded independent execution seed to reduce correlation with backend warm-up and chronological drift. Models may ignore per-case sampling seeds. Do not claim empirical invariance without repeats using a pinned model, tokenizer and inference runtime.
+
+## Last-turn-matched control (v0.3)
+
+For a three-turn induction [A, B, C], the new `tail_matched` condition [B, A, C] preserves the multiset of turns and the final induction turn's position. This guards against attributing all order effects to the most recent Gothic cue. Longer histories will require more than one matched permutation to test generality. Token identities and positions in the earlier turns still differ, so effects may be positional rather than a stable persona attractor.
+
+## Open-weight activation measurement
+
+An optional hidden-state forward-pass adapter exports selected layer outputs at the final input token and records exact token counts. The first measurement is a pairwise cosine distance with baseline and `tail_matched`, with matched seed and neutral probe. See [activation protocol](activation-protocol.md); these are descriptive statistics and make no claim about geometric parallel transport.

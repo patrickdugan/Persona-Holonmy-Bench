@@ -6,7 +6,8 @@ from typing import Any
 
 from .protocol import CONDITIONS, PHASES
 
-COLORS = {"ordered": "#147d89", "permuted": "#d18c37", "neutral": "#8060b0"}
+COLORS = {"ordered": "#147d89", "permuted": "#d18c37",
+          "tail_matched": "#38844b", "neutral": "#8060b0"}
 
 
 def render_svg(report: dict[str, Any]) -> str:
@@ -64,7 +65,7 @@ def render_svg(report: dict[str, Any]) -> str:
             fragments.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" '
                              f'fill="{color}" stroke="white" stroke-width="1.5"/>')
     for i, condition in enumerate(CONDITIONS):
-        x = left + i * 180
+        x = left + i * 165
         fragments.append(f'<line x1="{x}" y1="{height-42}" x2="{x+25}" '
                          f'y2="{height-42}" stroke="{COLORS[condition]}" stroke-width="3"/>')
         fragments.append(f'<text x="{x+32}" y="{height-37}" font-size="12" '
