@@ -119,3 +119,17 @@ Report negative effects and selectors that coincide with local degree. Never int
 The next research step is described in [docs/v010-component-ablation.md](docs/v010-component-ablation.md). PHB now provides `phb perc-components-plan`, `phb perc-components`, and `phb perc-components-report`. These test a **frozen, equal-per-block-budget PercInterp component selection** through pretrained TopK SAE decoder-contribution subtraction at the final prompt token. All selectors receive norm-matched random-orthogonal controls. Report comparisons by held-out **seed** after holding out an entire technical question family.
 
 Before running this on Qwen, obtain genuine pretrained SAEs for the **same model/revision**, derive faithful direct-attribution graph edges using only training seeds/probes, freeze `phb perc-select`, construct the explicit feature-map JSON, pin checkpoint SHA-256 values, and confirm the graph's `train_seeds` and `training_probe_ids` match PHB's deterministic split. Begin with `phb perc-components-plan`, which loads no model weights and fails on missing hashes, provenance mismatches, or unequal per-block latent budgets. A toy decoder and TopK checkpoint path pass CPU tests; real Qwen component effects remain unmeasured. If attribution graphs or trained SAEs are unavailable, prioritize their construction and validation, not generating arbitrary latent mappings.
+
+
+## v0.12: training-only signed single-feature attribution graph (October 22, 2026)
+
+Software v0.12 adds `phb sae-attribution-plan` and `phb sae-attribution`. Read `docs/v012-direct-attribution.md` first. The exporter loads locally hashed PercInterp TopK SAE checkpoints from the v0.11 registry, selects candidate latents by absolute *training-only* ordered-vs-tail-matched activation contrast, and estimates signed, finite-difference effects on later SAE latents or the first-token theatrical/plain style log-odds. It emits `phb.percinterp.attribution.v1` graph JSON for `phb perc-select`, `phb sae-feature-map`, and the v0.10 held-out `phb perc-components` comparison.
+
+Priorities for the next coding agent:
+1. Run `python -m pytest`, inspect model/SAE architecture and the v0.12 CI job; fix compatibility issues on a branch and PR.
+2. Generate cases with at least two probe IDs and disjoint seeds, capture/fix SAEs on training only; review validation FVU and checkpoint integrity.
+3. Run `phb sae-attribution-plan --input runs/cases.jsonl --registry runs/saes/sae-registry.json --model /path/to/CACHED_QWEN --top-features 4` without loading model weights. Audit exact forward-count budget.
+4. If the local 16GB VRAM model fits, run `phb sae-attribution` at four latents per SAE block, then `phb perc-select`. Examine `diagnostics.graph_status`, path availability, edge cancellation, and the measured first-token metric. Declare nulls.
+5. Freeze selector outputs before running feature-map export and held-out per-component ablation; compare same-budget degree and random selectors. Validate with fresh generation and blinded assessment.
+
+**Scientific boundary:** These edges are causal *local finite differences* for a specific final-prefix-token tensor and continuation metric, not additive EAP gradients, model-wide causal attribution, or proof of geometric holonomy. No pretrained Qwen graph result has been obtained here. The model revision in metadata is an exporter assertion; independently pin the actual weight SHA/revision.

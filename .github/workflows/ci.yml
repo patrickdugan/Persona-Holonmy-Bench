@@ -43,7 +43,7 @@ jobs:
           python -m pip install -e '.[test]'
       - name: Verify actual forward-hook intervention paths
         run: |
-          python -m pytest tests/test_interventions.py tests/test_sweep.py tests/test_freegen.py tests/test_perc_components.py tests/test_sae_pipeline.py -q
+          python -m pytest tests/test_interventions.py tests/test_sweep.py tests/test_freegen.py tests/test_perc_components.py tests/test_sae_pipeline.py tests/test_attribution_graph.py -q
 
   percinterp-interop:
     name: PercInterp real-library adapter (Python 3.12)
@@ -61,7 +61,7 @@ jobs:
           python -m pip install -e '.[test]'
       - name: Exercise real percolation and holonomy contracts
         run: |
-          python -m pytest tests/test_perc_bridge.py tests/test_perc_holonomy.py tests/test_perc_components.py tests/test_sae_pipeline.py -q
+          python -m pytest tests/test_perc_bridge.py tests/test_perc_holonomy.py tests/test_perc_components.py tests/test_sae_pipeline.py tests/test_attribution_graph.py -q
           phb perc-select --graph examples/percinterp/direct-attribution-SYNTHETIC.json \
             --shuffles 8 --random-controls 2 --output runs/perc-SYNTHETIC-selection.json
           phb generate --variation seeded_v1 --repetitions 8 --seed 100 \

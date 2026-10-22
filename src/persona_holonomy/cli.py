@@ -18,6 +18,7 @@ from .interventions import intervene_hf, intervention_report, intervention_markd
 from .sweep import sweep_hf, sweep_report, sweep_markdown, sweep_plan
 from .sweep_plot import render_sweep_svg
 from .freegen import freegen_hf, write_blind_export, read_blind_report
+from .attribution_graph import graph_plan_file, graph_hf
 from .perc_bridge import select_file as perc_select_file, audit_file as perc_audit_file
 from .perc_holonomy import holonomy_file as perc_holonomy_file
 from .perc_components import (
@@ -390,6 +391,28 @@ def command_sae_feature_map(args: argparse.Namespace) -> None:
         selection_path=args.selection, output_path=args.output)
     print(f"Mapped {len(result['features'])} selected nodes to pinned SAEs in {args.output}")
 
+def command_sae_attribution_plan(args: argparse.Namespace) -> None:
+    report = graph_plan_file(cases_path=args.input, registry_path=args.registry,
+        model_name=args.model, output_path=args.output, layers=args.layers,
+        top_features=args.top_features, phase=args.phase,
+        heldout_probes=tuple(x.strip() for x in args.heldout_probes.split(",") if x.strip()),
+        holdout_fraction=args.holdout_fraction, split_seed=args.split_seed)
+    print(f"Attribution plan: {report['n_training_pairs']} training pairs, "
+          f"at most {report['estimated_model_forwards_upper_bound']} forwards; {args.output}")
+
+
+def command_sae_attribution(args: argparse.Namespace) -> None:
+    result = graph_hf(cases_path=args.input, registry_path=args.registry,
+        model_name=args.model, output_path=args.output, layers=args.layers,
+        top_features=args.top_features, phase=args.phase,
+        heldout_probes=tuple(x.strip() for x in args.heldout_probes.split(",") if x.strip()),
+        holdout_fraction=args.holdout_fraction, split_seed=args.split_seed,
+        device=args.device, dtype=args.dtype, max_total_tokens=args.max_total_tokens,
+        allow_download=args.allow_download, trust_remote_code=args.trust_remote_code)
+    print(f"Measured {len(result['edges'])} signed training-only edges "
+          f"using {result['diagnostics']['total_model_forwards']} forwards; {args.output}")
+
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="phb", description=f"Persona Holonomy Bench, version {__version__}"
@@ -676,6 +699,31 @@ def make_parser() -> argparse.ArgumentParser:
     sae_map.add_argument("--selection", required=True)
     sae_map.add_argument("--output", required=True)
     sae_map.set_defaults(func=command_sae_feature_map)
+
+    attr_plan = sub.add_parser("sae-attribution-plan",
+        help="Offline provenance and forward-cost gate for signed SAE influence edges")
+    attr = sub.add_parser("sae-attribution",
+        help="Training-only single-latent finite-difference influence graph")
+    for cmd in (attr_plan, attr):
+        cmd.add_argument("--input", required=True, help="Seeded PHB cases JSONL")
+        cmd.add_argument("--registry", required=True, help="SAE registry from sae-fit")
+        cmd.add_argument("--model", required=True, help="Exact cached HF model / registry identity")
+        cmd.add_argument("--layers", default="all", help="Ascending SAE decoder blocks or 'all'")
+        cmd.add_argument("--top-features", type=int, default=8,
+                         help="Candidate latents per SAE block, ranked on training contrast only")
+        cmd.add_argument("--phase", default="exit")
+        cmd.add_argument("--heldout-probes", default="parser_validator")
+        cmd.add_argument("--holdout-fraction", type=float, default=.4)
+        cmd.add_argument("--split-seed", type=int, default=20261022)
+    attr_plan.add_argument("--output", default="runs/sae-attribution-plan.json")
+    attr_plan.set_defaults(func=command_sae_attribution_plan)
+    attr.add_argument("--output", default="runs/sae-attribution-graph.json")
+    attr.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
+    attr.add_argument("--dtype", choices=("auto", "float32", "float16", "bfloat16"), default="auto")
+    attr.add_argument("--max-total-tokens", type=int, default=4096)
+    attr.add_argument("--allow-download", action="store_true")
+    attr.add_argument("--trust-remote-code", action="store_true")
+    attr.set_defaults(func=command_sae_attribution)
 
     return parser
 
