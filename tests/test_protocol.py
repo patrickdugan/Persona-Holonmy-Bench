@@ -64,3 +64,27 @@ def test_case_count_unique_keys_and_history_character_measure():
     for case in cases:
         assert case.history_chars == sum(len(m["content"]) for m in case.messages[1:-1])
         assert case.history_messages == len(case.messages) - 2
+
+
+def test_seeded_variant_changes_history_but_preserves_matching_order():
+    """A train/test split on seed must split genuinely distinct conversations."""
+    from persona_holonomy.protocol import stages_for, build_cases, PROBES
+    hashes = {}
+    for seed in range(41, 53):
+        ordered = stages_for("ordered", seed, variation="seeded_v1")
+        tail = stages_for("tail_matched", seed, variation="seeded_v1")
+        permuted = stages_for("permuted", seed, variation="seeded_v1")
+        assert tail == (ordered[1], ordered[0], ordered[2])
+        assert set(ordered) == set(permuted)
+        assert tail[-1] == ordered[-1]
+        neutral = stages_for("neutral", seed, variation="seeded_v1")
+        hashes[seed] = (tuple(stage.user for stage in ordered),
+                        tuple(stage.user for stage in neutral))
+    assert len({value[0] for value in hashes.values()}) == len(hashes)
+    assert len({value[1] for value in hashes.values()}) == len(hashes)
+    example = list(build_cases(repetitions=2, variation="seeded_v1",
+                               conditions=("ordered",), phases=("exit",),
+                               probes=(PROBES[0],)))
+    assert example[0].variation == "seeded_v1"
+    assert example[0].case_id.endswith(".v1")
+    assert example[0].messages != example[1].messages

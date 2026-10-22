@@ -1,6 +1,6 @@
 # VPD / SAE / holonomy research roadmap
 
-This proposal treats VPD-style decomposition as a **future mechanistic measurement**, distinct from the runnable behavioral harness in v0.1.
+v0.4 includes descriptive open-weight hidden-state capture and a *limited causal experiment* that perturbs whole-block output residuals or rank-one mean-difference directions at the final prompt token. It does **not** identify a VPD component or SAE feature. The components and geometric operators below remain a roadmap.
 
 ## Open-weight activation capture
 
@@ -10,6 +10,8 @@ This proposal treats VPD-style decomposition as a **future mechanistic measureme
 - Compute within-model principal component and sparse-autoencoder activation trajectories; report stability under prompts and decoding settings.
 
 ## Causal identification
+
+**Implemented in v0.4:** `phb intervene --mode transplant|rank1`. The rank-one mean-difference candidate is fit on independent seed-varied transcript histories and injected into held-out cases. A norm-matched random direction, neutral-history donor, and identity self-patch provide initial controls. See [intervention protocol](intervention-protocol.md). This answers whether a *tensor-level perturbation* affects next-token continuation scores, not which sparse feature or circuit mediates the behavior.
 
 A candidate "persona component" needs an intervention: suppress or replace the component at selected layers during generation. Compare changes in genre intrusion and technical correctness. Use positive and negative control components to test specificity, repeat across questions, and keep response-style graders blinded.
 

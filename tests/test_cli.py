@@ -52,3 +52,23 @@ def test_run_execution_order_is_seeded_and_counterbalanced(tmp_path):
     assert a == b
     assert a != c
     assert sorted(a) == sorted(c)
+
+
+def test_intervention_report_cli(tmp_path):
+    from persona_holonomy.cli import main
+    record = {
+        "schema_version": 1, "experiment": "transplant", "model": "synthetic-toy",
+        "tokenizer": "toy", "layer": 1, "target_condition": "tail_matched",
+        "alpha": 1., "source_condition": "ordered", "seed": 3,
+        "probe_id": "flaky_ci", "phase": "exit", "effect": .15,
+        "self_patch_delta": 0.0, "target_case_id": "test-id",
+        "negative_control": False,
+    }
+    raw = tmp_path / "interventions.jsonl"
+    raw.write_text(json.dumps(record) + "\n")
+    output = tmp_path / "summary"
+    main(["intervention-report", "--input", str(raw), "--output-prefix", str(output)])
+    report = json.loads(Path(str(output) + ".json").read_text())
+    assert report["n_records"] == 1
+    assert report["groups"][0]["mean_effect"] == .15
+    assert Path(str(output) + ".md").exists()

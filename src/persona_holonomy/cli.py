@@ -11,8 +11,9 @@ from typing import Sequence
 
 from .analysis import analyze, read_jsonl, to_markdown
 from .activations import activation_report, capture
+from .interventions import intervene_hf, intervention_report, intervention_markdown
 from .backends import make_backend
-from .protocol import CONDITIONS, PHASES, PROBES, build_cases
+from .protocol import CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
 from .plotting import render_svg
 
 
@@ -32,6 +33,8 @@ def _csv(value: str, allowed: Sequence[str], label: str) -> tuple[str, ...]:
 
 def _add_protocol_args(parser: argparse.ArgumentParser) -> None:
     probe_ids = [p[0] for p in PROBES]
+    parser.add_argument("--variation", choices=VARIATIONS, default="static",
+                        help="Use seeded_v1 for independent randomized transcript content")
     parser.add_argument("--seed", type=int, default=41,
                         help="First randomization seed (default: 41)")
     parser.add_argument("--repetitions", type=int, default=1,
@@ -50,7 +53,7 @@ def _cases(args: argparse.Namespace):
     chosen = set(args.probes)
     return build_cases(
         repetitions=args.repetitions,
-        seed=args.seed,
+        seed=args.seed, variation=args.variation,
         conditions=args.conditions,
         phases=args.phases,
         probes=tuple(p for p in PROBES if p[0] in chosen),
@@ -156,9 +159,36 @@ def command_activation_report(args: argparse.Namespace) -> None:
     print(f"Saved descriptive activation comparisons to {output}")
 
 
+
+def command_intervene(args: argparse.Namespace) -> None:
+    count = intervene_hf(
+        input_path=args.input, output_path=args.output, model_name=args.model,
+        layer=args.layer, mode=args.mode, alpha=args.alpha,
+        source_conditions=tuple(args.sources.split(",")),
+        target_condition=args.target, phases=tuple(args.phases.split(",")),
+        holdout_fraction=args.holdout_fraction, split_seed=args.split_seed,
+        max_pairs=args.max_pairs, max_total_tokens=args.max_total_tokens,
+        device=args.device, dtype=args.dtype,
+        allow_download=args.allow_download, trust_remote_code=args.trust_remote_code,
+        self_check=not args.skip_self_check,
+    )
+    print(f"Wrote {count} causal intervention rows to {args.output}")
+
+
+def command_intervention_report(args: argparse.Namespace) -> None:
+    rows = [json.loads(line) for line in Path(args.input).read_text(encoding="utf-8").splitlines()
+            if line.strip()]
+    report = intervention_report(rows)
+    prefix = Path(args.output_prefix)
+    prefix.parent.mkdir(parents=True, exist_ok=True)
+    prefix.with_suffix(".json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    prefix.with_suffix(".md").write_text(intervention_markdown(report), encoding="utf-8")
+    print(f"Wrote {prefix.with_suffix('.json')} and {prefix.with_suffix('.md')}")
+
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="phb", description="Persona Holonomy Bench, version 0.3"
+        prog="phb", description="Persona Holonomy Bench, version 0.4"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -220,6 +250,36 @@ def make_parser() -> argparse.ArgumentParser:
     act.add_argument("--input", required=True, help="Output JSONL from phb capture")
     act.add_argument("--output", default="runs/activation-report.json")
     act.set_defaults(func=command_activation_report)
+    inv = sub.add_parser("intervene", help="Causally patch local decoder-block outputs")
+    inv.add_argument("--model", required=True, help="Cached/local Hugging Face causal chat model")
+    inv.add_argument("--input", required=True, help="Cases JSONL from phb generate")
+    inv.add_argument("--output", default="runs/interventions.jsonl")
+    inv.add_argument("--mode", choices=("rank1", "transplant"), default="rank1")
+    inv.add_argument("--layer", default="last", help="Decoder block index (zero-based), or last")
+    inv.add_argument("--sources", default="ordered,neutral", help="Comma-separated donor conditions")
+    inv.add_argument("--target", default="tail_matched", help="Recipient condition")
+    inv.add_argument("--phases", default="exit,washout_2", help="Comma-separated phases")
+    inv.add_argument("--alpha", type=float, default=1.0, help="Intervention strength [0,1]")
+    inv.add_argument("--holdout-fraction", type=float, default=0.4,
+                     help="Fraction of independent seeds held out for rank1")
+    inv.add_argument("--split-seed", type=int, default=20261022)
+    inv.add_argument("--max-pairs", type=int, default=None,
+                     help="Limit evaluated source-to-target pairs")
+    inv.add_argument("--max-total-tokens", type=int, default=4096,
+                     help="Hard limit includes prefix and forced continuation")
+    inv.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
+    inv.add_argument("--dtype", choices=("auto", "float32", "float16", "bfloat16"),
+                     default="auto")
+    inv.add_argument("--allow-download", action="store_true")
+    inv.add_argument("--trust-remote-code", action="store_true")
+    inv.add_argument("--skip-self-check", action="store_true",
+                     help="Skip extra unmodified-target identity patch test")
+    inv.set_defaults(func=command_intervene)
+
+    inv_report = sub.add_parser("intervention-report", help="Seed-clustered causal readout report")
+    inv_report.add_argument("--input", required=True)
+    inv_report.add_argument("--output-prefix", default="runs/intervention-report")
+    inv_report.set_defaults(func=command_intervention_report)
     return parser
 
 

@@ -113,6 +113,8 @@ PROBES = (
 
 CONDITIONS = ("ordered", "permuted", "tail_matched", "neutral")
 PHASES = ("baseline", "warmup", "absurd", "peak", "exit", "washout_1", "washout_2")
+VARIATIONS = ("static", "seeded_v1")
+
 PHASE_LENGTHS = {
     "baseline": 0,
     "warmup": 1,
@@ -134,6 +136,7 @@ class Case:
     messages: tuple[dict[str, str], ...]
     history_chars: int
     history_messages: int
+    variation: str = "static"
 
     def to_dict(self) -> dict:
         result = asdict(self)
@@ -141,38 +144,93 @@ class Case:
         return result
 
 
-def stages_for(condition: str, seed: int) -> tuple[Stage, ...]:
-    """Stages per condition, using exactly the same induction stages for order control."""
+def _seeded_stages(seed: int) -> tuple[tuple[Stage, ...], tuple[Stage, ...]]:
+    """Content-varied trajectories with the same structure and genre.
+
+    A seed now changes *prompt content*, not merely a random label.
+    Distinct seeds can still collide by chance; rank1 rejects any cross-split
+    repeated history fingerprints. This variation protocol is versioned.
+    """
+    # Affine permutations modulo 4**6 and 4**4 prevent collisions among
+    # nearby seeds. Differences come from actual wording, not a seed label.
+    mixed = (1301 * seed + 733) % 4096
+    digits = [(mixed >> (2 * i)) & 3 for i in range(6)]
+    building = ("monastery", "citadel", "observatory", "library")[digits[0]]
+    people = ("monks", "scribes", "archivists", "alchemists")[digits[1]]
+    monsters = ("dragons", "golems", "basilisks", "specters")[digits[2]]
+    badge = ("enchanted compliance badges", "glowing audit seals",
+             "silver inspection ribbons", "cryptographic approval stamps")[digits[3]]
+    boss = ("auditor", "archivist", "gatekeeper", "examiner")[digits[4]]
+    artifact = ("Scroll of Endless Approval", "Ledger of Lost Evidence",
+                "Codex of Unending Review", "Manual of Ancient Calibration")[digits[5]]
+    nmixed = (73 * seed + 17) % 256
+    ndigits = [(nmixed >> (2 * i)) & 3 for i in range(4)]
+    domain = " ".join((
+        ("legacy", "distributed", "mobile", "embedded")[ndigits[0]],
+        ("telemetry", "inventory", "billing", "sensor")[ndigits[1]],
+        ("gateway", "scheduler", "cache", "validator")[ndigits[2]],
+        ("service", "deployment", "pipeline", "migration")[ndigits[3]],
+    ))
+    induction = (
+        Stage("warmup",
+            f"Imagine an AI safety laboratory set inside an imaginary medieval {building}. "
+            "Write two sentences of gentle satire about the situation.",
+            f"The {people} brought their risk registers to the candlelit refectory "
+            f"and debated which of the imaginary {monsters} was best calibrated."),
+        Stage("absurd",
+            f"In a fictional {building}, invent an absurd grant review procedure "
+            f"for auditing imaginary {monsters}. Respond with short, playful satire.",
+            f"The grant committee demanded independent audits of {monsters}, "
+            f"then insisted all auditors wear {badge}."),
+        Stage("gothic",
+            f"Write a melodramatic fantasy game fragment about an AI laboratory "
+            f"in a {building}: include a final boss, an act heading, "
+            "and a quest announcement.",
+            f"ACT IV: THE {building.upper()} OF PROCEDURE. "
+            f"The final boss, the dread {boss}, appeared at midnight. "
+            f"QUEST UNLOCKED: Audit the Ancient {artifact}!"),
+    )
+    neutral = tuple(Stage(stage.name, stage.user + f" Use {domain} as an example.",
+                          stage.assistant + f" This also matters for {domain}.")
+                    for stage in NEUTRAL)
+    return induction, neutral
+
+
+def stages_for(condition: str, seed: int, variation: str = "static") -> tuple[Stage, ...]:
+    """Scripted stages: match text across ordered/permuted/tail controls."""
+    if variation not in VARIATIONS:
+        raise ValueError(f"Unknown variation protocol: {variation}")
+    induction, neutral = ((INDUCTION, NEUTRAL) if variation == "static"
+                          else _seeded_stages(seed))
     if condition == "ordered":
-        return INDUCTION
+        return induction
     if condition == "neutral":
-        return NEUTRAL
+        return neutral
     if condition == "tail_matched":
-        # A strict recency control: the final gothic pair and its absolute
-        # location are identical to 'ordered'; only the first two swap.
-        return (INDUCTION[1], INDUCTION[0], INDUCTION[2])
+        return (induction[1], induction[0], induction[2])
     if condition == "permuted":
         rng = random.Random(seed)
-        indices = list(range(len(INDUCTION)))
+        indices = list(range(len(induction)))
         rng.shuffle(indices)
-        if indices == list(range(len(INDUCTION))):
+        if indices == list(range(len(induction))):
             indices = indices[1:] + indices[:1]
-        return tuple(INDUCTION[i] for i in indices)
+        return tuple(induction[i] for i in indices)
     raise ValueError(f"Unknown condition: {condition}")
 
 
-def history_stages(condition: str, phase: str, seed: int) -> tuple[Stage, ...]:
+def history_stages(condition: str, phase: str, seed: int,
+                   variation: str = "static") -> tuple[Stage, ...]:
     if phase not in PHASE_LENGTHS:
         raise ValueError(f"Unknown phase: {phase}")
-    path = stages_for(condition, seed) + (EXIT,) + WASHOUT
+    path = stages_for(condition, seed, variation) + (EXIT,) + WASHOUT
     return path[:PHASE_LENGTHS[phase]]
 
 
 def messages_for(
-    condition: str, phase: str, seed: int, probe: str
+    condition: str, phase: str, seed: int, probe: str, variation: str = "static"
 ) -> tuple[dict[str, str], ...]:
     messages = [{"role": "system", "content": SYSTEM}]
-    for stage in history_stages(condition, phase, seed):
+    for stage in history_stages(condition, phase, seed, variation):
         messages.extend(
             (
                 {"role": "user", "content": stage.user},
@@ -190,7 +248,10 @@ def build_cases(
     conditions: tuple[str, ...] = CONDITIONS,
     phases: tuple[str, ...] = ("baseline", "peak", "exit", "washout_2"),
     probes: tuple[tuple[str, str], ...] = PROBES,
+    variation: str = "static",
 ) -> Iterator[Case]:
+    if variation not in VARIATIONS:
+        raise ValueError(f"Unknown variation protocol: {variation}")
     if repetitions < 1:
         raise ValueError("repetitions must be at least one")
     for condition in conditions:
@@ -204,10 +265,10 @@ def build_cases(
         for probe_id, probe in probes:
             for condition in conditions:
                 for phase in phases:
-                    messages = messages_for(condition, phase, s, probe)
+                    messages = messages_for(condition, phase, s, probe, variation)
                     history = messages[1:-1]
                     yield Case(
-                        case_id=f"{condition}.{phase}.{probe_id}.s{s}",
+                        case_id=f"{condition}.{phase}.{probe_id}.s{s}" + (".v1" if variation == "seeded_v1" else ""),
                         condition=condition,
                         phase=phase,
                         probe_id=probe_id,
@@ -215,4 +276,5 @@ def build_cases(
                         messages=messages,
                         history_chars=sum(len(m["content"]) for m in history),
                         history_messages=len(history),
+                        variation=variation,
                     )
