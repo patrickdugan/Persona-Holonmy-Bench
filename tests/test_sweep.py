@@ -74,6 +74,8 @@ def test_sweep_control_pairing_self_patch_and_token_diagnostic():
     # Last-block output is patched after the block has processed all positions.
     # It only changes the logits for the *first* continuation token.
     assert max(abs(r["later_token_effect"]) for r in rows if r["layer"] == 1) < 1e-6
+    assert any(abs(r["later_token_effect"]) > 1e-6 for r in rows
+               if r["layer"] == 0 and r["alpha"] == 1)
     report = sweep_report(rows)
     assert report["identity_check_passed_1e_3"]
     assert report["max_abs_alpha_zero_effect"] == 0
