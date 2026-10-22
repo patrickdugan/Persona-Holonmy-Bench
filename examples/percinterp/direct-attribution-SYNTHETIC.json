@@ -1,0 +1,91 @@
+{
+  "schema": "phb.percinterp.attribution.v1",
+  "provenance": {
+    "edge_semantics": "direct_attribution",
+    "train_seeds": [
+      1,
+      2,
+      3
+    ],
+    "estimator": "synthetic_unit_test_only",
+    "model": "toy"
+  },
+  "nodes": [
+    {
+      "id": "input",
+      "stage": 0
+    },
+    {
+      "id": "a",
+      "stage": 1,
+      "decoder_block": 0
+    },
+    {
+      "id": "b",
+      "stage": 1,
+      "decoder_block": 1
+    },
+    {
+      "id": "c",
+      "stage": 2,
+      "decoder_block": 2
+    },
+    {
+      "id": "d",
+      "stage": 2,
+      "decoder_block": 3
+    },
+    {
+      "id": "output",
+      "stage": 3
+    }
+  ],
+  "edges": [
+    {
+      "source": "input",
+      "target": "a",
+      "signed_weight": 0.9
+    },
+    {
+      "source": "input",
+      "target": "b",
+      "signed_weight": 0.3
+    },
+    {
+      "source": "a",
+      "target": "c",
+      "signed_weight": 0.88
+    },
+    {
+      "source": "a",
+      "target": "d",
+      "signed_weight": -0.2
+    },
+    {
+      "source": "b",
+      "target": "c",
+      "signed_weight": 0.1
+    },
+    {
+      "source": "b",
+      "target": "d",
+      "signed_weight": 0.67
+    },
+    {
+      "source": "c",
+      "target": "output",
+      "signed_weight": 0.81
+    },
+    {
+      "source": "d",
+      "target": "output",
+      "signed_weight": -0.3
+    }
+  ],
+  "sources": [
+    "input"
+  ],
+  "sinks": [
+    "output"
+  ]
+}

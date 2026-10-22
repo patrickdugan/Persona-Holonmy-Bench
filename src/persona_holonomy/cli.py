@@ -16,6 +16,8 @@ from .interventions import intervene_hf, intervention_report, intervention_markd
 from .sweep import sweep_hf, sweep_report, sweep_markdown, sweep_plan
 from .sweep_plot import render_sweep_svg
 from .freegen import freegen_hf, write_blind_export, read_blind_report
+from .perc_bridge import select_file as perc_select_file, audit_file as perc_audit_file
+from .perc_holonomy import holonomy_file as perc_holonomy_file
 from .backends import make_backend
 from .protocol import CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
 from .plotting import render_svg
@@ -279,9 +281,37 @@ def command_blind_report(args: argparse.Namespace) -> None:
     print(f"Reported {report['n_trials']} fully rated trials to {args.output}")
 
 
+
+def command_perc_select(args: argparse.Namespace) -> None:
+    report = perc_select_file(args.graph, args.output, n_shuffles=args.shuffles,
+                              n_random=args.random_controls, seed=args.seed,
+                              z_min=args.z_min)
+    print(f"Frozen {len(report['selected_nodes']['sieve'])} graph nodes "
+          f"at c*={report['sieve']['c_star']:.4g}; saved {args.output}")
+
+
+def command_perc_audit(args: argparse.Namespace) -> None:
+    report = perc_audit_file(args.manifest, args.sweep, args.output,
+                             source=args.source, phase=args.phase,
+                             alpha=args.alpha, mode=args.mode)
+    print(f"Audited {report['selected_block_budget']} selected decoder blocks "
+          f"on {report['n_scored_seeds']} held-out seeds; wrote {args.output}")
+
+
+def command_perc_holonomy(args: argparse.Namespace) -> None:
+    report = perc_holonomy_file(args.activations, args.output,
+                                layer=args.layer,
+                                conditions=tuple(x.strip() for x in args.conditions.split(',')),
+                                phases=tuple(x.strip() for x in args.phases.split(',')),
+                                rank=args.rank, min_overlap=args.min_overlap,
+                                epsilon=args.epsilon, seed=args.seed,
+                                null_shuffles=args.null_shuffles)
+    print(f"Analyzed {report['holonomy']['cycles_recorded']} certified frame loops "
+          f"across {len(report['nodes'])} states; wrote {args.output}")
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="phb", description="Persona Holonomy Bench, version 0.7"
+        prog="phb", description="Persona Holonomy Bench, version 0.8"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -452,6 +482,39 @@ def make_parser() -> argparse.ArgumentParser:
     rating.add_argument("--key", required=True, help="Private mapping from blind-export")
     rating.add_argument("--output", default="runs/blind-report.json")
     rating.set_defaults(func=command_blind_report)
+
+    perc = sub.add_parser("perc-select", help="Freeze PercInterp backbone and graph-only budget-matched selections")
+    perc.add_argument("--graph", required=True, help="Direct-attribution graph JSON (see examples/percinterp)")
+    perc.add_argument("--output", default="runs/perc-selection.json")
+    perc.add_argument("--shuffles", type=int, default=32)
+    perc.add_argument("--random-controls", type=int, default=12)
+    perc.add_argument("--seed", type=int, default=20261022)
+    perc.add_argument("--z-min", type=float, default=3.0)
+    perc.set_defaults(func=command_perc_select)
+
+    perc_audit = sub.add_parser("perc-audit", help="Compare frozen PercInterp block selectors on held-out PHB sweep data")
+    perc_audit.add_argument("--manifest", required=True, help="Frozen JSON output of perc-select")
+    perc_audit.add_argument("--sweep", required=True, help="PHB causal sweep JSONL, held out")
+    perc_audit.add_argument("--output", default="runs/perc-block-audit.json")
+    perc_audit.add_argument("--source", default="ordered")
+    perc_audit.add_argument("--phase", default="exit")
+    perc_audit.add_argument("--alpha", type=float, default=1.)
+    perc_audit.add_argument("--mode", choices=("inject", "erase"), default="inject")
+    perc_audit.set_defaults(func=command_perc_audit)
+
+    perc_h = sub.add_parser("perc-holonomy", help="Frame-transport cycle diagnostics via PercInterp")
+    perc_h.add_argument("--activations", required=True, help="JSONL produced by phb capture")
+    perc_h.add_argument("--output", default="runs/perc-frame-holonomy.json")
+    perc_h.add_argument("--layer", default="hs_8", help="One hidden-state index, e.g. hs_8")
+    perc_h.add_argument("--conditions", default="ordered,tail_matched")
+    perc_h.add_argument("--phases", default="peak,exit,washout_2")
+    perc_h.add_argument("--rank", type=int, default=2)
+    perc_h.add_argument("--min-overlap", type=float, default=0.1)
+    perc_h.add_argument("--epsilon", type=float, default=0.05)
+    perc_h.add_argument("--null-shuffles", type=int, default=16,
+                        help="Within-phase condition-label swaps as a permutation null")
+    perc_h.add_argument("--seed", type=int, default=20261022)
+    perc_h.set_defaults(func=command_perc_holonomy)
     return parser
 
 

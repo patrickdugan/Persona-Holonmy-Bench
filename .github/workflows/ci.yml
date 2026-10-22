@@ -44,3 +44,22 @@ jobs:
       - name: Verify actual forward-hook intervention paths
         run: |
           python -m pytest tests/test_interventions.py tests/test_sweep.py tests/test_freegen.py -q
+
+  percinterp-interop:
+    name: PercInterp real-library adapter (Python 3.12)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PercInterp from MoralityLabAI and PHB
+        run: |
+          python -m pip install 'git+https://github.com/MoralityLabAI/percolation-interp'
+          python -m pip install -e '.[test]'
+      - name: Exercise real percolation and holonomy contracts
+        run: |
+          python -m pytest tests/test_perc_bridge.py tests/test_perc_holonomy.py -q
+          phb perc-select --graph examples/percinterp/direct-attribution-SYNTHETIC.json \
+            --shuffles 8 --random-controls 2 --output runs/perc-SYNTHETIC-selection.json

@@ -146,6 +146,34 @@ likelihoods. A pretrained checkpoint run and independent blinded ratings remain
 outstanding. See [the free-generation validation protocol](docs/freegen-validation.md)
 for grading instructions, causal assumptions, and acceptance criteria.
 
+
+## PercInterp crossover (v0.8; optional)
+
+PHB now connects to [MoralityLabAI/PercInterp](https://github.com/MoralityLabAI/percolation-interp)
+through three CPU-side commands: `phb perc-select` freezes source-to-sink
+percolation candidates from externally validated *direct attribution edges*;
+`phb perc-audit` compares their explicitly mapped decoder blocks with PHB's
+held-out orthogonal-controlled sweep results; and `phb perc-holonomy` constructs
+PCA frames from matched PHB activation captures and uses PercInterp's explicit
+Procrustes frame connection to measure certified loops and test gauge invariance.
+
+The first two commands **do not** create attribution edges from rank-one
+activation differences. The layer audit is a coarse proxy, not component-level
+causal validation. The frame experiment is exploratory and requires replication
+against a history-shuffle null. Neither needs pretrained weights for graph-only
+selection, and all GPU inference remains opt-in.
+
+Install the upstream library with Python 3.11+:
+
+```bash
+python -m pip install 'git+https://github.com/MoralityLabAI/percolation-interp'
+phb perc-select --graph examples/percinterp/direct-attribution-SYNTHETIC.json \
+  --output runs/perc-selection-SYNTHETIC.json
+```
+
+See [the complete bridge protocol](docs/percinterp-bridge.md) for actual model
+inputs, frozen controls, and both experimental hypotheses.
+
 ## Design
 
 Each case has an identical system instruction and a held-out **neutral technical question**. The conversation history varies:
