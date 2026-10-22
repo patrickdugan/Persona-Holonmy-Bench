@@ -1,0 +1,115 @@
+"""Orthogonal-null causal sweep tests on an actual tiny torch decoder."""
+from __future__ import annotations
+
+import copy
+import json
+
+import pytest
+
+from persona_holonomy.protocol import PROBES, build_cases
+from persona_holonomy.sweep import run_sweep, sweep_markdown, sweep_report, split_and_guard
+from persona_holonomy.interventions import prepare_pairs, _patch_hook
+from test_interventions import toy_model
+
+
+def cases(repetitions=4, variation="seeded_v1"):
+    return [x.to_dict() for x in build_cases(
+        repetitions=repetitions, seed=22, variation=variation,
+        conditions=("ordered", "tail_matched", "neutral"),
+        phases=("exit",), probes=(PROBES[0],),
+    )]
+
+
+def test_erase_projection_is_removed_without_mutating_original_tensor():
+    torch = pytest.importorskip("torch")
+    block = torch.nn.Identity()
+    original = torch.tensor([[[1., 0., 0.], [4., 3., 1.]]])
+    direction = torch.tensor([2., 0., 0.])
+    center = torch.tensor([1., 1., 1.])
+    state = {}
+    with _patch_hook(block, position=1, vector=direction, alpha=1,
+                     mode="erase", reference=center, state=state):
+        out = block(original)
+    assert torch.equal(out[0, 1], torch.tensor([1., 3., 1.]))
+    assert torch.equal(original[0, 1], torch.tensor([4., 3., 1.]))
+    assert state["calls"] == 1
+    with _patch_hook(block, position=1, vector=direction, alpha=0,
+                     mode="erase", reference=center, state={}):
+        assert torch.equal(block(original), original)
+    with pytest.raises(ValueError, match="reference"):
+        with _patch_hook(block, position=1, vector=direction, alpha=1,
+                         mode="erase", state={}):
+            block(original)
+
+
+def test_split_rejects_identical_histories_and_holds_seeds():
+    pairs = prepare_pairs(cases(), source_conditions=("ordered",),
+                          target_condition="tail_matched", phases=("exit",))
+    train, test = split_and_guard(pairs, holdout_fraction=.5, split_seed=33)
+    assert set(train).isdisjoint(test)
+    assert len(train) == len(test) == 2
+    static_pairs = prepare_pairs(cases(variation="static"),
+                                 source_conditions=("ordered",),
+                                 target_condition="tail_matched", phases=("exit",))
+    with pytest.raises(ValueError, match="leakage"):
+        split_and_guard(static_pairs, holdout_fraction=.5, split_seed=33)
+
+
+def test_sweep_control_pairing_self_patch_and_token_diagnostic():
+    model, tokenizer = toy_model()
+    rows = run_sweep(cases=cases(), model=model, tokenizer=tokenizer,
+                     layers=("0", "last"), alphas=(0., 1.),
+                     source_conditions=("ordered",), phases=("exit",),
+                     max_total_tokens=256, model_name="toy", split_seed=33)
+    # 2 held-out seeds * 1 source * 2 modes * 2 controls * 2 alphas * 2 layers
+    assert len(rows) == 32
+    assert {row["layer"] for row in rows} == {0, 1}
+    assert {row["mode"] for row in rows} == {"inject", "erase"}
+    assert all(row["recipient_condition"] == ("ordered" if row["mode"] == "erase"
+                                                   else "tail_matched") for row in rows)
+    assert all(abs(row["effect"]) < 1e-8 for row in rows if row["alpha"] == 0)
+    assert all(abs(row["self_patch_delta"]) < 1e-6 for row in rows)
+    assert all(row["patch_l2_norm"] >= 0 for row in rows)
+    assert all(row["first_token_effect"] is not None for row in rows)
+    # Last-block output is patched after the block has processed all positions.
+    # It only changes the logits for the *first* continuation token.
+    assert max(abs(r["later_token_effect"]) for r in rows if r["layer"] == 1) < 1e-6
+    report = sweep_report(rows)
+    assert report["identity_check_passed_1e_3"]
+    assert report["max_abs_alpha_zero_effect"] == 0
+    assert len(report["summaries"]) == 8
+    assert any(s["alpha"] == 1. for s in report["summaries"])
+    assert "specificity" in sweep_markdown(report).lower()
+    with pytest.raises(ValueError, match="Duplicate"):
+        sweep_report(rows + [rows[0]])
+    with pytest.raises(ValueError, match="Unpaired"):
+        sweep_report([r for r in rows if r is not rows[1]])
+
+
+def test_sweep_validation_before_expensive_model_passes():
+    model, tokenizer = toy_model()
+    settings = dict(cases=cases(), model=model, tokenizer=tokenizer,
+                    source_conditions=("ordered",), phases=("exit",))
+    with pytest.raises(ValueError, match="repeated decoder block"):
+        run_sweep(**settings, layers=("1", "last"))
+    with pytest.raises(ValueError, match="Alphas"):
+        run_sweep(**settings, alphas=(-.1,))
+    with pytest.raises(ValueError, match="Alphas"):
+        run_sweep(**settings, alphas=(.5, .5))
+    with pytest.raises(ValueError, match="leakage"):
+        run_sweep(**{**settings, "cases": cases(variation="static")})
+
+
+def test_sweep_svg_render_and_missing_combination():
+    from persona_holonomy.sweep_plot import render_sweep_svg
+    demo = {"model": "toy<literal>", "summaries": [
+        {"layer": k, "mode": mode, "direction_source": "ordered",
+         "phase": "exit", "alpha": 1., "mean_paired_specificity": value,
+         "seed_bootstrap_95pct_ci": [-.02, .1]}
+        for k in (0, 1) for mode, value in (("inject", .05), ("erase", -.01))
+    ]}
+    xml = render_sweep_svg(demo)
+    assert "<svg" in xml and "toy&lt;literal&gt;" in xml
+    assert "inject" in xml and "erase" in xml
+    with pytest.raises(ValueError, match="No sweep rows"):
+        render_sweep_svg(demo, phase="washout_2")

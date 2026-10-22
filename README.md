@@ -6,7 +6,7 @@ The motivating question is simple: can a long, playful conversation push a langu
 
 The initial seed is the *AI safety monastery / dungeon RPG* conversation. We make this into a controlled protocol rather than trying to decide whether a model has literally reverted to an older model's personality.
 
-> **Scope of v0.4:** transcript-conditioned behavioral hysteresis; forward-only activation capture; and *causal* last-prefix-token decoder-block interventions on local open-weight models. A held-out rank-one mean-difference direction now comes with identity-patch and random-direction controls. Geometric holonomy and identification of VPD/SAE features remain research hypotheses.
+> **Scope of v0.5:** transcript-conditioned behavioral hysteresis; forward-only activation capture; rank-one injection and held-out **projection erasure across preregistered decoder layers and strengths**. Paired norm-matched orthogonal controls, first-token diagnostics, and an SVG layer sweep are included. Geometric holonomy and identification of VPD/SAE features remain research hypotheses.
 
 ## Quick start
 
@@ -53,7 +53,7 @@ phb run --backend openai-compatible --model YOUR_LOCAL_MODEL \
 A hosted compatible endpoint can be specified explicitly. Set its API key in an environment variable, for example `OPENAI_API_KEY`, and review any data-handling implications before transmission. Some backends ignore `seed`; results must be interpreted accordingly.
 
 
-## Causal rank-one / transplant experiments (v0.4)
+## Causal rank-one / transplant experiments (v0.4+)
 
 Version 0.4 adds `phb intervene` and `phb intervention-report`. Local HF decoder-block hooks modify the final input-token residual while scoring fixed theatrical and plain continuations. A rank-one direction is trained from the mean difference between two histories and tested on **disjoint, text-varied seed histories**; a norm-matched orthogonal direction and a neutral-history source act as controls.
 
@@ -72,6 +72,29 @@ This small example verifies pipeline behavior and produces too few independent h
 
 The causal output is a **difference in mean per-token log-likelihood margins**, not generated reply quality, SAE feature attribution, or measured geometric holonomy. See [the causal protocol](docs/intervention-protocol.md) for equations, controls, and limitations. PyTorch toy-decoder interventions are tested; pretrained open-weight checkpoints have not been run in this environment.
 
+
+## Held-out causal layer sweep (v0.5)
+
+The next experiment adds `phb sweep`, `phb sweep-report`, and `phb sweep-plot` for **rank-one injection** and **projection erasure** on separate held-out histories. The directional effect is compared to a norm-matched orthogonal intervention and displayed by decoder layer. The readout now distinguishes the first continuation token from later tokens, which matters because patches at the final decoder block can predominantly alter the first-token prediction.
+
+```bash
+# Produce content-distinct, seed-matched pairs before any model inference:
+phb generate --variation seeded_v1 --repetitions 5 --seed 100 \
+  --conditions ordered,tail_matched,neutral --phases exit \
+  --probes flaky_ci --output runs/sweep-cases.jsonl
+
+# Cache your chosen model locally; model downloads are opt-in.
+pip install -e '.[test,mechanistic]'
+phb sweep --model /path/to/local/HF/chat-model \
+  --input runs/sweep-cases.jsonl --sources ordered \
+  --layers 0,last --alphas 0,1 --phases exit \
+  --output runs/sweep.jsonl
+phb sweep-report --input runs/sweep.jsonl --output-prefix runs/sweep-report
+phb sweep-plot --report runs/sweep-report.json --source ordered \
+  --output runs/sweep.svg
+```
+
+The five-seed example is a quick mechanistic shakedown. To estimate population-level effects, rerun with at least 15 distinct seeds, multiple probes, and preregistered layers. The first release remains a PyTorch-hook tested implementation; **no pretrained model causal findings are claimed**. See [the full causal layer sweep protocol](docs/layer-sweep-protocol.md) for equations, costs, controls, and interpretation criteria.
 
 ## Design
 
@@ -106,7 +129,8 @@ The default run executes 4 conditions × 4 phases × 2 probes × 1 seed = **32 g
 - [ ] Interactive model-generated trajectories
 - [x] Optional open-weight hidden-state capture (not SAE feature attribution)
 - [x] Causal last-prefix-token full-residual transplantation and held-out rank-one mean-difference steering
-- [ ] Validated SAE feature attribution and layer-specific feature ablations
+- [x] Held-out rank-one projection erasure, norm-matched nulls, layer/dose sweep, and first-vs-later token diagnostic
+- [ ] Validated SAE feature attribution and layer-specific **SAE** feature ablations
 - [ ] Path-transport specification and closed-loop holonomy estimators
 - [ ] Percolation-style transition and phase-boundary analysis
 

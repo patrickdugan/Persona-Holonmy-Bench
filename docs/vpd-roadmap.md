@@ -1,6 +1,6 @@
 # VPD / SAE / holonomy research roadmap
 
-v0.4 includes descriptive open-weight hidden-state capture and a *limited causal experiment* that perturbs whole-block output residuals or rank-one mean-difference directions at the final prompt token. It does **not** identify a VPD component or SAE feature. The components and geometric operators below remain a roadmap.
+v0.5 includes descriptive open-weight hidden-state capture and a *limited causal experiment* that perturbs whole-block output residuals or rank-one mean-difference directions at the final prompt token, including held-out projection erasure and dose/layer sweeps. It does **not** identify a VPD component or SAE feature. The components and geometric operators below remain a roadmap.
 
 ## Open-weight activation capture
 
@@ -11,7 +11,7 @@ v0.4 includes descriptive open-weight hidden-state capture and a *limited causal
 
 ## Causal identification
 
-**Implemented in v0.4:** `phb intervene --mode transplant|rank1`. The rank-one mean-difference candidate is fit on independent seed-varied transcript histories and injected into held-out cases. A norm-matched random direction, neutral-history donor, and identity self-patch provide initial controls. See [intervention protocol](intervention-protocol.md). This answers whether a *tensor-level perturbation* affects next-token continuation scores, not which sparse feature or circuit mediates the behavior.
+**Implemented through v0.5:** `phb intervene --mode transplant|rank1` and `phb sweep` for preregistered layers, held-out projection erasure, and norm-matched orthogonal nulls. The rank-one mean-difference candidate is fit on independent seed-varied transcript histories and injected into held-out cases. A norm-matched random direction, neutral-history donor, and identity self-patch provide initial controls. See [intervention protocol](intervention-protocol.md) and [layer sweep protocol](layer-sweep-protocol.md). This answers whether a *tensor-level perturbation* affects next-token continuation scores, not which sparse feature or circuit mediates the behavior.
 
 A candidate "persona component" needs an intervention: suppress or replace the component at selected layers during generation. Compare changes in genre intrusion and technical correctness. Use positive and negative control components to test specificity, repeat across questions, and keep response-style graders blinded.
 

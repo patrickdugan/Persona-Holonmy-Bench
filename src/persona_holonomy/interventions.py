@@ -117,6 +117,8 @@ def select_block(layer: str, n: int) -> int:
     """Unlike hidden-state indexes in `capture`, blocks are zero-indexed."""
     if layer == "last":
         return n - 1
+    if layer == "mid":
+        return n // 2
     try:
         i = int(layer)
     except ValueError as exc:
@@ -159,7 +161,7 @@ def _capture_hook(block: Any, state: dict[str, Any]):
 
 @contextmanager
 def _patch_hook(block: Any, *, position: int, vector: Any,
-                alpha: float, mode: str, state: dict[str, Any]):
+                alpha: float, mode: str, state: dict[str, Any], reference=None):
     def hook(_module, _inputs, output):
         hidden = _unpack_hidden(output)
         if position >= hidden.shape[1]:
@@ -174,6 +176,19 @@ def _patch_hook(block: Any, *, position: int, vector: Any,
             )
         elif mode == "add":
             modified[0, position, :] = hidden[0, position, :] + alpha * donor
+        elif mode == "erase":
+            if reference is None:
+                raise ValueError("Projection erasure requires a reference activation")
+            center = reference.to(device=hidden.device, dtype=hidden.dtype)
+            if center.shape != donor.shape:
+                raise ValueError("Erasure reference dimensions differ from activation")
+            norm = donor.float().norm()
+            if float(norm) < 1e-10:
+                raise ValueError("Cannot erase a zero-length direction")
+            unit = donor / norm.to(dtype=donor.dtype)
+            displacement = hidden[0, position, :] - center
+            removed = (displacement.float() * unit.float()).sum().to(hidden.dtype) * unit
+            modified[0, position, :] = hidden[0, position, :] - alpha * removed
         else:
             raise ValueError(f"Unknown intervention mode: {mode}")
         state["calls"] += 1
@@ -250,7 +265,7 @@ class CausalProbe:
 
     def logprob(self, messages: list[dict[str, str]], completion: str,
                 *, vector=None, mode: str = "transplant", alpha: float = 1.0,
-                prefix=None) -> tuple[float, int]:
+                prefix=None, reference=None) -> tuple[float, int, float, float | None]:
         prefix = prefix if prefix is not None else self._prefix(messages)
         ids = prefix["input_ids"]
         suffix = self._suffix_ids(completion)
@@ -270,29 +285,36 @@ class CausalProbe:
                 logits = self.model(**inputs, use_cache=False, return_dict=True).logits
             else:
                 with _patch_hook(self.block, position=prefix_len - 1,
-                                 vector=vector, alpha=alpha, mode=mode, state=state):
+                                 vector=vector, alpha=alpha, mode=mode,
+                                 state=state, reference=reference):
                     logits = self.model(**inputs, use_cache=False, return_dict=True).logits
                 if state["calls"] != 1:
                     raise RuntimeError("Hook did not run exactly once during scoring")
             relevant = logits[0, prefix_len - 1:prefix_len + suffix_len - 1]
             log_probs = relevant.float().log_softmax(-1)
             picked = log_probs.gather(-1, suffix[0].unsqueeze(1)).squeeze(1)
-            return float(picked.mean().item()), suffix_len
+            tail = (float(picked[1:].mean().item()) if suffix_len > 1 else None)
+            return float(picked.mean().item()), suffix_len, float(picked[0].item()), tail
 
     def style_margin(self, messages: list[dict[str, str]], *, probe_id: str,
-                     vector=None, mode="transplant", alpha=1.0) -> dict[str, Any]:
+                     vector=None, mode="transplant", alpha=1.0,
+                     reference=None) -> dict[str, Any]:
         prefix = self._prefix(messages)
         targets = STYLE_COMPLETIONS[probe_id]
-        ordinary, n_plain = self.logprob(
+        ordinary, n_plain, ordinary_first, ordinary_tail = self.logprob(
             messages, targets["plain"], vector=vector, mode=mode, alpha=alpha,
-            prefix=prefix,
+            prefix=prefix, reference=reference,
         )
-        theatrical, n_theatrical = self.logprob(
+        theatrical, n_theatrical, theatrical_first, theatrical_tail = self.logprob(
             messages, targets["theatrical"], vector=vector, mode=mode,
-            alpha=alpha, prefix=prefix,
+            alpha=alpha, prefix=prefix, reference=reference,
         )
         return {
             "margin": theatrical - ordinary,
+            "first_token_margin": theatrical_first - ordinary_first,
+            "later_token_margin": (theatrical_tail - ordinary_tail
+                                   if theatrical_tail is not None and ordinary_tail is not None
+                                   else None),
             "plain_mean_logprob": ordinary,
             "theatrical_mean_logprob": theatrical,
             "plain_tokens": n_plain,

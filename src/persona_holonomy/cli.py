@@ -12,6 +12,8 @@ from typing import Sequence
 from .analysis import analyze, read_jsonl, to_markdown
 from .activations import activation_report, capture
 from .interventions import intervene_hf, intervention_report, intervention_markdown
+from .sweep import sweep_hf, sweep_report, sweep_markdown
+from .sweep_plot import render_sweep_svg
 from .backends import make_backend
 from .protocol import CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
 from .plotting import render_svg
@@ -186,9 +188,46 @@ def command_intervention_report(args: argparse.Namespace) -> None:
     print(f"Wrote {prefix.with_suffix('.json')} and {prefix.with_suffix('.md')}")
 
 
+def command_sweep(args: argparse.Namespace) -> None:
+    count = sweep_hf(
+        input_path=args.input, output_path=args.output, model_name=args.model,
+        layers=tuple(x.strip() for x in args.layers.split(",") if x.strip()),
+        alphas=tuple(float(x.strip()) for x in args.alphas.split(",") if x.strip()),
+        source_conditions=tuple(x.strip() for x in args.sources.split(",") if x.strip()),
+        reference_condition=args.reference,
+        phases=tuple(x.strip() for x in args.phases.split(",") if x.strip()),
+        holdout_fraction=args.holdout_fraction, split_seed=args.split_seed,
+        max_total_tokens=args.max_total_tokens,
+        device=args.device, dtype=args.dtype,
+        allow_download=args.allow_download, trust_remote_code=args.trust_remote_code,
+        self_check=not args.skip_self_check,
+    )
+    print(f"Wrote {count} held-out causal sweep observations to {args.output}")
+
+
+def command_sweep_report(args: argparse.Namespace) -> None:
+    rows = [json.loads(line) for line in Path(args.input).read_text(encoding="utf-8").splitlines()
+            if line.strip()]
+    report = sweep_report(rows)
+    output = Path(args.output_prefix)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.with_suffix(".json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    output.with_suffix(".md").write_text(sweep_markdown(report), encoding="utf-8")
+    print(f"Wrote paired causal specificity report to {output.with_suffix('.md')}")
+
+
+def command_sweep_plot(args: argparse.Namespace) -> None:
+    report = json.loads(Path(args.report).read_text(encoding="utf-8"))
+    svg = render_sweep_svg(report, source=args.source, phase=args.phase, alpha=args.alpha)
+    path = Path(args.output)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(svg, encoding="utf-8")
+    print(f"Wrote held-out layer comparison to {path}")
+
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="phb", description="Persona Holonomy Bench, version 0.4"
+        prog="phb", description="Persona Holonomy Bench, version 0.5"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -280,6 +319,38 @@ def make_parser() -> argparse.ArgumentParser:
     inv_report.add_argument("--input", required=True)
     inv_report.add_argument("--output-prefix", default="runs/intervention-report")
     inv_report.set_defaults(func=command_intervention_report)
+    sweep = sub.add_parser("sweep", help="Held-out multi-layer rank-one injection/erasure study")
+    sweep.add_argument("--model", required=True, help="Cached/local Transformers causal chat model")
+    sweep.add_argument("--input", required=True, help="Seed-varied cases JSONL")
+    sweep.add_argument("--output", default="runs/sweep.jsonl")
+    sweep.add_argument("--layers", default="0,mid,last",
+                       help="Zero-based decoder blocks: e.g. 0,4,last (mid is accepted)")
+    sweep.add_argument("--alphas", default="0,0.5,1", help="Comma-separated strengths within [0,1]")
+    sweep.add_argument("--sources", default="ordered,neutral")
+    sweep.add_argument("--reference", default="tail_matched")
+    sweep.add_argument("--phases", default="exit")
+    sweep.add_argument("--holdout-fraction", type=float, default=.4)
+    sweep.add_argument("--split-seed", type=int, default=20261022)
+    sweep.add_argument("--max-total-tokens", type=int, default=4096)
+    sweep.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
+    sweep.add_argument("--dtype", choices=("auto", "float32", "float16", "bfloat16"),
+                       default="auto")
+    sweep.add_argument("--allow-download", action="store_true")
+    sweep.add_argument("--trust-remote-code", action="store_true")
+    sweep.add_argument("--skip-self-check", action="store_true")
+    sweep.set_defaults(func=command_sweep)
+
+    sr = sub.add_parser("sweep-report", help="Paired candidate-vs-random causal specificity")
+    sr.add_argument("--input", required=True)
+    sr.add_argument("--output-prefix", default="runs/sweep-report")
+    sr.set_defaults(func=command_sweep_report)
+    sp = sub.add_parser("sweep-plot", help="Visualize causal specificity across blocks")
+    sp.add_argument("--report", required=True)
+    sp.add_argument("--output", default="runs/layer-sweep.svg")
+    sp.add_argument("--source", default="ordered")
+    sp.add_argument("--phase", default="exit")
+    sp.add_argument("--alpha", type=float, default=1.)
+    sp.set_defaults(func=command_sweep_plot)
     return parser
 
 
