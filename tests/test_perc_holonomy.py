@@ -10,7 +10,7 @@ from persona_holonomy.perc_holonomy import analyze_frames
 def synthetic_rows():
     rows = []
     for condition, c in (("ordered", 0), ("tail_matched", 1)):
-        for phase, t in (("baseline", 0), ("exit", 1), ("washout_2", 2)):
+        for phase, t in (("peak", 0), ("exit", 1), ("washout_2", 2)):
             theta = .07 * t + .06 * c
             phi = .08 * c + .03 * t
             for seed in range(8):
