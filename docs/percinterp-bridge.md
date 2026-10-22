@@ -1,6 +1,6 @@
 # PHB × PercInterp: attribution sieves, held-out causal gates, and frame holonomy
 
-**Status: v0.8 optional integration.** Both repositories are MIT-licensed. The Python distribution/import for [PercInterp](https://github.com/MoralityLabAI/percolation-interp) is `percinterp`. The upstream package requires Python 3.11+ and NumPy/SciPy; PHB's core continues to work under Python 3.10 without those dependencies.
+**Status: v0.9 optional integration with provenance and seed-cluster controls.** Both repositories are MIT-licensed. The Python distribution/import for [PercInterp](https://github.com/MoralityLabAI/percolation-interp) is `percinterp`. The upstream package requires Python 3.11+ and NumPy/SciPy; PHB's core continues to work under Python 3.10 without those dependencies.
 
 This is intentionally **two separate experiments**. The direct-attribution path selects candidate components from an *externally calculated* layered influence graph. The frame-transport path tests a particular mathematical connection on PHB residual activation samples. Neither input can be quietly substituted for the other.
 
@@ -25,7 +25,9 @@ Export a JSON file with the schema below. Each edge is a **signed direct attribu
     "edge_semantics": "direct_attribution",
     "estimator": "YOUR_VERIFIED_EAP_METHOD",
     "model": "EXACT_MODEL_REVISION",
-    "train_seeds": [100, 101, 102]
+    "train_seeds": [100, 101, 102],
+    "training_probe_ids": ["flaky_ci"],
+    "tokenizer": "OPTIONAL_TOKENIZER_ID"
   },
   "nodes": [
     {"id": "input:token", "stage": 0},
@@ -67,7 +69,7 @@ phb perc-audit \
   --output runs/perc-layer-audit.json
 ```
 
-The audit refuses overlapping train/test seeds, mismatched train-probe/test-probe partitions, missing blocks, missing orthogonal controls, unequal selector block budgets, and incomplete matched seed/probe cells. It calculates within-seed per-block candidate-minus-orthogonal specificity, then paired sieve-versus-control contrasts with sign-flip p-values and Holm correction.
+The audit refuses overlapping train/test seeds, mismatched training-probe partitions, **different model checkpoint identifiers**, tokenizer discrepancies when the optional field is present, missing blocks, missing orthogonal controls, unequal selector block budgets, and incomplete matched seed/probe cells. **`provenance.training_probe_ids` and `provenance.model` are required for an audit**, while graph-only selection can still run without training-probe metadata. Metadata is an exporter assertion rather than an independently verified provenance chain. The selection's graph digest makes later mutation detectable if the original graph is retained. It calculates within-seed per-block candidate-minus-orthogonal specificity, then paired sieve-versus-control contrasts with sign-flip p-values and Holm correction.
 
 **Critical boundary:** PHB's current interventions change a *whole decoder-block residual direction*. A successful layer audit can suggest which blocks merit expensive component-level tests; it cannot establish causal necessity or sufficiency of an individual PercInterp-selected component. Component-level activation patching must be implemented before making that stronger claim. A percolation selector identical to a local-degree selector has no demonstrated incremental advantage.
 
@@ -99,7 +101,7 @@ phb perc-holonomy --activations runs/perc-frame-activations.jsonl \
   --output runs/perc-holonomy.json
 ```
 
-Why start at `peak`? The seeded-v1 baseline prompt is identical across seeds for a given probe, which can make baseline PCA **rank deficient**. Peak and later phases include seeded content variants. The command rejects unmatched seed/probe samples, mixed checkpoint identities, degenerate frames, and weakly supported links. Gauge invariance is a necessary implementation check; it does not demonstrate physical significance. The adapter includes a condition-label permutation null: it swaps ordered/tail assignments within each matched (seed, probe, phase), refits frames, and recomputes maximum certified loop distances. These are within-dataset nulls. Independent new seeds and another model family remain necessary for research conclusions.
+Why start at `peak`? The seeded-v1 baseline prompt is identical across seeds for a given probe, which can make baseline PCA **rank deficient**. Peak and later phases include seeded content variants. The command rejects unmatched seed/probe samples, mixed checkpoint identities, degenerate frames, and weakly supported links. Gauge invariance is a necessary implementation check; it does not demonstrate physical significance. The adapter includes a condition-label permutation null: it swaps ordered/tail labels **once per entire history seed, consistently across all probes and phases**, then refits frames and recomputes maximum certified loop distances. The exchangeability unit is a seed, so correlated probes never artificially increase null degrees of freedom. These are within-dataset nulls. Independent new seeds and another model family remain necessary for research conclusions.
 
 ## Working hypothesis and decision gate
 

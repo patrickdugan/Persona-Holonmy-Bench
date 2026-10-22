@@ -172,8 +172,14 @@ def test_orthogonal_null_and_tuple_preserving_hook():
     from persona_holonomy.interventions import _patch_hook
     direction = torch.arange(1, 13, dtype=torch.float32)
     null = _orthogonal_random(direction, seed=9, torch=torch)
-    assert torch.dot(direction, null) == pytest.approx(0, abs=1e-4)
-    assert torch.linalg.vector_norm(direction) == pytest.approx(
+    # Compare scalar values: recent PyTorch tensors do not consistently
+    # implement pytest.approx's numeric coercion across versions.
+    cosine = float(torch.dot(direction, null)) / (
+        float(torch.linalg.vector_norm(direction)) *
+        float(torch.linalg.vector_norm(null))
+    )
+    assert cosine == pytest.approx(0.0, abs=1e-6)
+    assert float(torch.linalg.vector_norm(direction)) == pytest.approx(
         float(torch.linalg.vector_norm(null)))
 
     class TupleBlock(torch.nn.Module):

@@ -85,3 +85,16 @@ Current implementation: [docs/percinterp-bridge.md](docs/percinterp-bridge.md). 
 **Open research obligations:** Run a real cached Qwen model on the RTX 5080, get real signed attribution edges from an independently checked source, freeze graph selectors on training-only histories, compare on held-out seeds/probes, and test whether individual selected SAE/VPD components (as opposed to whole blocks) show incremental causal effects versus local-degree and same-budget random controls. Report null outcomes. There are no pretrained-model findings from this crossover yet.
 
 **First Codex/Claude instruction:** Verify v0.8 GitHub CI and `docs/percinterp-bridge.md`, run `tests/test_perc_bridge.py` and `tests/test_perc_holonomy.py` using the real `percinterp` installation, fix any adapter mismatch, then prioritize a cached-Qwen pilot. Avoid unrequested model downloads or expensive GPU jobs.
+
+
+## 2026-10-22: v0.9 PercInterp robustness follow-up
+
+Latest work is the provenance-checked PHB × PercInterp bridge. See `docs/v09-percinterp-robustness.md` and `docs/percinterp-bridge.md`.
+
+- For `phb perc-audit`, exporter assertions `provenance.model`, `provenance.train_seeds`, and `provenance.training_probe_ids` must match the sweep's declared model and exact training split. Optional `provenance.tokenizer` also must match. Freeze original files and immutable checkpoint revisions for real reproducibility.
+- Two component selectors that map to the same selected decoder-block set receive equivalent layer-level interventions; the audit explicitly flags this. Do not treat their original component selection difference as independently validated.
+- `phb perc-holonomy` uses whole-seed condition-label permutations shared across all probes and phases. The number of randomization units is distinct seeds, not seed×probe×phase.
+- CI pins PercInterp commit `c0b3f6abf8e847292aaf1e21b8f4b804fd4d8ce0`; the earlier v0.8 mechanistic CI failure was caused by a PyTorch tensor-versus-pytest.approx comparison, and a scalar test fix is included here.
+- Next priority remains a pinned open-weight checkpoint experiment on local GPU, first as a preflight pilot. Then estimate direct component-attribution edges on a *training-only* partition, freeze PercInterp selectors, and assess results on held-out examples. Component-level causal patching is future work.
+
+Report negative effects and selectors that coincide with local degree. Never interpret a block-level audit as a component-level causal finding or label percolation-frame transport as endogenous model state transport.

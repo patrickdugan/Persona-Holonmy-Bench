@@ -8,7 +8,10 @@
       3
     ],
     "estimator": "synthetic_unit_test_only",
-    "model": "toy"
+    "model": "toy",
+    "training_probe_ids": [
+      "flaky_ci"
+    ]
   },
   "nodes": [
     {

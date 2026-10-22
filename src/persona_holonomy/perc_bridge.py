@@ -204,6 +204,14 @@ def audit_sweep_by_block(manifest: dict[str, Any], rows: list[dict[str, Any]], *
         raise ValueError("Mode must be inject or erase")
     provenance = manifest.get("provenance", {})
     train_from_graph = provenance.get("train_seeds")
+    graph_model = provenance.get("model")
+    graph_probes = provenance.get("training_probe_ids")
+    if not isinstance(graph_model, str) or not graph_model.strip():
+        raise ValueError("Layer audit requires a nonblank graph provenance.model")
+    if not isinstance(graph_probes, list) or not graph_probes or \
+       any(not isinstance(p, str) or not p for p in graph_probes) or \
+       len(set(graph_probes)) != len(graph_probes):
+        raise ValueError("Layer audit requires distinct provenance.training_probe_ids")
     if not isinstance(train_from_graph, list) or not train_from_graph:
         raise ValueError("Layer audit requires graph provenance.train_seeds to prevent leakage")
     selected = manifest.get("selected_decoder_blocks", {})
@@ -221,6 +229,12 @@ def audit_sweep_by_block(manifest: dict[str, Any], rows: list[dict[str, Any]], *
     models = {(r.get("model"), r.get("tokenizer"), r.get("reference_condition")) for r in filtered}
     if len(models) != 1:
         raise ValueError("Mixed model/tokenizer/reference in sweep")
+    model, tokenizer, reference = next(iter(models))
+    if model != graph_model:
+        raise ValueError("Attribution graph model does not match the evaluated sweep model")
+    graph_tokenizer = provenance.get("tokenizer")
+    if graph_tokenizer is not None and graph_tokenizer != tokenizer:
+        raise ValueError("Attribution graph tokenizer does not match the evaluated sweep tokenizer")
     split_configs = {(tuple(r.get("training_seeds", [])), tuple(r.get("test_seeds", [])),
                       tuple(r.get("training_probe_ids", [])), tuple(r.get("evaluation_probe_ids", [])))
                      for r in filtered}
@@ -231,6 +245,8 @@ def audit_sweep_by_block(manifest: dict[str, Any], rows: list[dict[str, Any]], *
         raise ValueError("Graph training seeds must match sweep training split, disjoint from held-out seeds")
     if not set(train_probe).isdisjoint(eval_probe):
         raise ValueError("Training and held-out probe domains overlap")
+    if set(graph_probes) != set(train_probe):
+        raise ValueError("Graph training probes must match the sweep training probe split")
     observations: dict[tuple[int, int, str], dict[str, dict]] = defaultdict(dict)
     for r in filtered:
         if r.get("control") not in ("candidate", "orthogonal"):
@@ -287,6 +303,14 @@ def audit_sweep_by_block(manifest: dict[str, Any], rows: list[dict[str, Any]], *
     adjusted = holm_adjust(tests)
     for key, p in zip(keys, adjusted):
         summaries[key]["holm_p_value"] = p
+        # Equal *block* sets make exactly the same intervention comparison,
+        # even when percolation selected different component IDs upstream.
+        summaries[key]["same_decoder_blocks_as_sieve"] = (
+            set(selected[key]) == set(selected["sieve"])
+        )
+        if summaries[key]["same_decoder_blocks_as_sieve"]:
+            if any(abs(x - sieve_score[seed]) > 1e-12 for seed, x in by_seed[key].items()):
+                raise ValueError("Identical selector block sets gave inconsistent paired scores")
     return {
         "schema": AUDIT_SCHEMA, "selection_graph_sha256": manifest["graph_sha256"],
         "model": next(iter(models))[0], "tokenizer": next(iter(models))[1],
@@ -296,12 +320,15 @@ def audit_sweep_by_block(manifest: dict[str, Any], rows: list[dict[str, Any]], *
         "n_scored_seeds": len(sieve_score), "n_scored_probes": len(expected),
         "selected_block_budget": len(selected["sieve"]),
         "selector_comparisons": summaries,
+        "n_distinct_decoder_block_selectors": len({tuple(sorted(v)) for v in selected.values()}),
         "interpretation": "Held-out decoder-*block* intervention proxy; selected graph nodes were not individually ablated.",
         "limitations": [
             "A layer selected by many components is still one block intervention; node-level causal claims require component patching.",
             "Comparing selected blocks does not prove the PercInterp graph's edge attribution was faithful.",
             "Probe and seed independence, attribution provenance and preregistration remain external obligations.",
             "Selector scores share the same evaluation probes and are paired by held-out seed.",
+            "Identical selected block sets are causally indistinguishable by this layer audit.",
+            "Graph model and probe provenance are exporter assertions, not verified source-file hashes.",
         ],
     }
 

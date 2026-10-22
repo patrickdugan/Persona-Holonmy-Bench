@@ -14,7 +14,8 @@ def graph_fixture():
     return {
         "schema": GRAPH_SCHEMA,
         "provenance": {"edge_semantics": "direct_attribution", "train_seeds": [1, 2, 3],
-                       "estimator": "synthetic_unit_test_only", "model": "toy"},
+                       "estimator": "synthetic_unit_test_only", "model": "toy",
+                       "training_probe_ids": ["old_probe"], "tokenizer": "toy"},
         "nodes": [
             {"id": "input", "stage": 0},
             {"id": "a", "stage": 1, "decoder_block": 0},
@@ -39,7 +40,8 @@ def graph_fixture():
 def manifest_fixture():
     return {
         "schema": SELECT_SCHEMA, "graph_sha256": "fixture-hash",
-        "provenance": {"train_seeds": [1, 2, 3]},
+        "provenance": {"train_seeds": [1, 2, 3], "training_probe_ids": ["old_probe"],
+                       "model": "toy", "tokenizer": "toy"},
         "selected_decoder_blocks": {
             "sieve": [0, 2], "local_degree": [1, 2],
             "top_attribution": [0, 3], "random_000": [1, 3],
@@ -139,3 +141,35 @@ def test_block_audit_refuses_overlap_unbalanced_controls_and_missing_layers():
     wrong_prefix[0]["prefix_sha256"] = "tampered"
     with pytest.raises(ValueError, match="different recipient"):
         audit_sweep_by_block(m, wrong_prefix)
+
+
+def test_block_audit_rejects_model_and_probe_provenance_mismatch():
+    original = manifest_fixture()
+    rows = rows_fixture()
+    wrong = copy.deepcopy(original)
+    wrong["provenance"]["model"] = "other-checkpoint"
+    with pytest.raises(ValueError, match="model does not match"):
+        audit_sweep_by_block(wrong, rows)
+    wrong = copy.deepcopy(original)
+    wrong["provenance"]["training_probe_ids"] = ["new_probe"]
+    with pytest.raises(ValueError, match="Graph training probes"):
+        audit_sweep_by_block(wrong, rows)
+    wrong = copy.deepcopy(original)
+    wrong["provenance"]["tokenizer"] = "other-tokenizer"
+    with pytest.raises(ValueError, match="tokenizer does not match"):
+        audit_sweep_by_block(wrong, rows)
+    wrong = copy.deepcopy(original)
+    del wrong["provenance"]["training_probe_ids"]
+    with pytest.raises(ValueError, match="provenance.training_probe_ids"):
+        audit_sweep_by_block(wrong, rows)
+
+
+def test_block_equivalent_selector_is_explicitly_identified():
+    manifest = manifest_fixture()
+    manifest["selected_decoder_blocks"]["local_degree"] = [2, 0]
+    report = audit_sweep_by_block(manifest, rows_fixture())
+    comp = report["selector_comparisons"]["local_degree"]
+    assert comp["same_decoder_blocks_as_sieve"]
+    assert comp["mean_sieve_minus_selector"] == pytest.approx(0)
+    assert comp["holm_p_value"] == 1
+    assert report["n_distinct_decoder_block_selectors"] == 3

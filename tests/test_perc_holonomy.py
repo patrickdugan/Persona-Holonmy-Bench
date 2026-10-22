@@ -32,6 +32,8 @@ def test_gauge_invariance_and_cycle_birth_for_matching_activation_frames():
     assert result["schema"].endswith("frame_holonomy.v1")
     assert result["n_distinct_seeds"] == 8
     assert len(result["history_label_swap_null"]["null_max_loop_frobenius"]) == 4
+    assert result["history_label_swap_null"]["permutation_unit"] == "seed_cluster"
+    assert result["history_label_swap_null"]["n_permutation_units"] == 8
     assert 0 <= result["history_label_swap_null"]["one_sided_permutation_p_value"] <= 1
     assert len(result["nodes"]) == 6
     assert len(result["edges"]) == 7
@@ -54,3 +56,22 @@ def test_misaligned_samples_and_rank_deficient_data_are_rejected():
         analyze_frames(flat, layer="hs_8", rank=2)
     with pytest.raises(ValueError, match="two different conditions"):
         analyze_frames(synthetic_rows(), layer="hs_8", conditions=("ordered", "ordered"))
+
+
+def test_seed_cluster_null_does_not_gain_sample_size_by_repeating_probes():
+    pytest.importorskip("percinterp")
+    once = analyze_frames(synthetic_rows(), layer="hs_8", rank=2, null_shuffles=7)
+    duplicate_probes = synthetic_rows()
+    for row in list(duplicate_probes):
+        copied = copy.deepcopy(row)
+        copied["probe_id"] = "second_probe"
+        copied["case_id"] += "-second"
+        duplicate_probes.append(copied)
+    twice = analyze_frames(duplicate_probes, layer="hs_8", rank=2, null_shuffles=7)
+    assert twice["n_matched_seed_probe_samples"] == 2 * once["n_matched_seed_probe_samples"]
+    assert twice["history_label_swap_null"]["n_permutation_units"] == 8
+    assert twice["history_label_swap_null"]["null_max_loop_frobenius"] == pytest.approx(
+        once["history_label_swap_null"]["null_max_loop_frobenius"], abs=1e-7
+    )
+    assert twice["history_label_swap_null"]["one_sided_permutation_p_value"] == \
+           once["history_label_swap_null"]["one_sided_permutation_p_value"]

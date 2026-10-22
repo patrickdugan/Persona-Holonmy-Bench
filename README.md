@@ -8,6 +8,13 @@ The initial seed is the *AI safety monastery / dungeon RPG* conversation. We mak
 
 > **Scope of v0.7:** transcript-conditioned behavioral hysteresis; forward-only activation capture; rank-one injection and held-out **projection erasure across preregistered decoder layers and strengths**. Paired norm-matched orthogonal controls, first-token diagnostics, unseen technical-probe holdout, exact seed-level sign-flip tests, Holm multiplicity adjustment, and an SVG layer sweep are included. Geometric holonomy and identification of VPD/SAE features remain research hypotheses.
 
+
+## PercInterp v0.9 replication and provenance gates
+
+The [PercInterp integration](docs/percinterp-bridge.md) now requires the attribution graph's `provenance.model`, optional `provenance.tokenizer`, and **`provenance.training_probe_ids`** to agree with PHB sweep metadata when performing a layer audit. Graph selection remains available on incomplete exploratory graph metadata, but inferential audits fail closed. The audit also reports when different component selectors choose the **same unique decoder blocks**; at block resolution these selectors have indistinguishable causal tests.
+
+The frame-holonomy condition-label null swaps **whole history seeds** across all probes and phases, rather than treating repeated probes or phases as independent permutation units. For scientific interpretation, record the unit count and independent model replication. CI pins a specific PercInterp commit. This release also fixes a PyTorch-version-dependent test assertion in the orthogonal-hook checks. See [v0.9 robustness notes](docs/v09-percinterp-robustness.md).
+
 ## Quick start
 
 Python 3.10+; core has **no third-party runtime dependencies**.

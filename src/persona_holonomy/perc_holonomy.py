@@ -143,9 +143,10 @@ def analyze_frames(records: list[dict[str, Any]], *, layer: str,
                             original["eigenphases_degrees"], changed["eigenphases_degrees"])))
     if error > 1e-5:
         raise RuntimeError(f"Frame holonomy gauge-invariance regression: {error}")
-    # Condition-label permutation null. Within each (seed, probe, phase) pair,
-    # optionally swap ordered/tail assignments. Phase marginals and sample
-    # composition stay fixed while persistent condition trajectories are broken.
+    # Condition-label permutation null. Swap *whole seed clusters*, including
+    # all probes and phases. A seed can contribute multiple strongly correlated
+    # probe rows and a longitudinal trajectory; treating them as independent
+    # randomization units would exaggerate the apparent permutation sample size.
     # Every null gets its *own* frame fit and link ranking; weak edges are
     # certified using the same min_overlap as the observed experiment.
     def loop_strength(local_frames):
@@ -163,10 +164,11 @@ def analyze_frames(records: list[dict[str, Any]], *, layer: str,
     if null_shuffles:
         for _ in range(null_shuffles):
             scrambled = {node: dict(values) for node, values in state.items()}
+            swapped_seed = {s: rng_null.random() < .5 for s in seeds}
             for phase in phases:
                 first, second = (conditions[0], phase), (conditions[1], phase)
                 for sample in samples:
-                    if rng_null.random() < .5:
+                    if swapped_seed[sample[0]]:
                         scrambled[first][sample], scrambled[second][sample] = (
                             state[second][sample], state[first][sample])
             # Scrambled frames can be rank-deficient in degenerate synthetic
@@ -206,7 +208,9 @@ def analyze_frames(records: list[dict[str, Any]], *, layer: str,
         "gauge_invariance_max_error": error,
         "gauge_test_seed": seed,
         "history_label_swap_null": {
-            "scheme": "independent condition-label swap per (phase, seed, probe)",
+            "scheme": "whole-seed condition-label swap shared across all probes and phases",
+            "permutation_unit": "seed_cluster",
+            "n_permutation_units": len(seeds),
             "n_shuffles": null_shuffles,
             "observed_max_certified_loop_frobenius": observed_strength,
             "null_max_loop_frobenius": null_strengths,
@@ -219,6 +223,7 @@ def analyze_frames(records: list[dict[str, Any]], *, layer: str,
             "Frames are empirical PCA bases of last-prefix-token vectors, not a model-defined state connection.",
             "Token positions differ between conversational histories; activations can encode sequence length and text.",
             "Holonomy is well-defined for this frame/connection choice; it does not establish persistent model identity.",
+            "Seed-level label swaps preserve within-seed probe dependence and phase trajectories.",
             "Condition-label permutation is a within-dataset exploratory null; independent-seed replication is required.",
         ],
     }
