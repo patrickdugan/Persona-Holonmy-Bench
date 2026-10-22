@@ -41,6 +41,7 @@ jobs:
         run: |
           python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch>=2.2'
           python -m pip install -e '.[test]'
+          python -m pip install 'git+https://github.com/MoralityLabAI/percolation-interp@c0b3f6abf8e847292aaf1e21b8f4b804fd4d8ce0'
       - name: Verify actual forward-hook intervention paths
         run: |
           python -m pytest tests/test_interventions.py tests/test_sweep.py tests/test_freegen.py tests/test_perc_components.py -q
