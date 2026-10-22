@@ -19,6 +19,7 @@ import json
 import math
 import random
 import statistics
+import struct
 from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
@@ -321,7 +322,10 @@ class CausalProbe:
             "theatrical_tokens": n_theatrical,
             "prefix_tokens": int(prefix["input_ids"].shape[1]),
             "prefix_sha256": hashlib.sha256(
-                prefix["input_ids"].cpu().numpy().tobytes()
+                struct.pack(
+                    f"<{prefix['input_ids'].numel()}q",
+                    *prefix["input_ids"].detach().cpu().reshape(-1).tolist(),
+                )
             ).hexdigest(),
         }
 
