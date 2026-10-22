@@ -6,7 +6,7 @@ The motivating question is simple: can a long, playful conversation push a langu
 
 The initial seed is the *AI safety monastery / dungeon RPG* conversation. We make this into a controlled protocol rather than trying to decide whether a model has literally reverted to an older model's personality.
 
-> **Scope of v0.7:** transcript-conditioned behavioral hysteresis; forward-only activation capture; rank-one injection and held-out **projection erasure across preregistered decoder layers and strengths**. Paired norm-matched orthogonal controls, first-token diagnostics, unseen technical-probe holdout, exact seed-level sign-flip tests, Holm multiplicity adjustment, and an SVG layer sweep are included. Geometric holonomy and identification of VPD/SAE features remain research hypotheses.
+> **Scope through v0.12:** transcript-conditioned behavioral hysteresis; forward-only activation capture; rank-one injection and held-out **projection erasure across preregistered decoder layers and strengths**. Paired norm-matched orthogonal controls, first-token diagnostics, unseen technical-probe holdout, exact seed-level sign-flip tests, Holm multiplicity adjustment, and an SVG layer sweep are included. Geometric holonomy and identification of VPD/SAE features remain research hypotheses.
 
 
 ## PercInterp v0.9 replication and provenance gates
@@ -14,6 +14,45 @@ The initial seed is the *AI safety monastery / dungeon RPG* conversation. We mak
 The [PercInterp integration](docs/percinterp-bridge.md) now requires the attribution graph's `provenance.model`, optional `provenance.tokenizer`, and **`provenance.training_probe_ids`** to agree with PHB sweep metadata when performing a layer audit. Graph selection remains available on incomplete exploratory graph metadata, but inferential audits fail closed. The audit also reports when different component selectors choose the **same unique decoder blocks**; at block resolution these selectors have indistinguishable causal tests.
 
 The frame-holonomy condition-label null swaps **whole history seeds** across all probes and phases, rather than treating repeated probes or phases as independent permutation units. For scientific interpretation, record the unit count and independent model replication. CI pins a specific PercInterp commit. This release also fixes a PyTorch-version-dependent test assertion in the orthogonal-hook checks. See [v0.9 robustness notes](docs/v09-percinterp-robustness.md).
+
+## v0.12: training-only signed direct influence edges for PercInterp
+
+`phb sae-attribution-plan` checks locally pinned SAE checkpoint hashes, the
+frozen Qwen model identity, case provenance, and disjoint seed/question partitions
+without loading model weights. `phb sae-attribution` removes **one SAE latent's
+ordered-versus-tail-matched contrast contribution** at a time and records the
+signed downstream change in the next sampled SAE layer or the first-token style
+log-odds. Candidate features and edge weights are obtained from training cases
+only. The resulting `phb.percinterp.attribution.v1` graph can be consumed
+immediately by `phb perc-select`, followed by `phb sae-feature-map` and the v0.10
+held-out feature ablations.
+
+These edges are local finite-difference responses between sampled decoder
+blocks, not EAP gradients or an additive explanation of the model. **No pretrained
+Qwen weights have yet been evaluated.** See
+[the signed attribution protocol](docs/v012-direct-attribution.md) for commands,
+resource bounds, provenance, and research limitations.
+
+## Frozen workstation pilot (v0.13)
+
+The six-stage, **offline-first** GPU pilot runner freezes the seed/probe split and artifact hashes before a Qwen model is loaded. It refuses mutable checkpoint-revision labels, missing local HF weights, partial stage outputs, changed manifests, and graph/ablation runs exceeding the declared forward-call cap.
+
+```bash
+phb pilot-plan --model /path/to/CACHED_HF_QWEN \
+  --revision EXACT_40_HEX_COMMIT_OR_64_HEX_DIGEST \
+  --output-dir runs/qwen-001 --repetitions 8 \
+  --layers mid,last --top-features 4 --max-model-forwards 250
+
+# Explicit opt-in, one stage at a time, on your model-enabled workstation:
+phb pilot-stage --plan runs/qwen-001/plan.json --stage capture
+phb pilot-stage --plan runs/qwen-001/plan.json --stage fit
+phb pilot-stage --plan runs/qwen-001/plan.json --stage graph
+phb pilot-stage --plan runs/qwen-001/plan.json --stage select
+phb pilot-stage --plan runs/qwen-001/plan.json --stage map
+phb pilot-stage --plan runs/qwen-001/plan.json --stage evaluate
+```
+
+See [the workstation pilot protocol](docs/v013-workstation-pilot.md). **No pretrained Qwen effect has been measured yet.** The default eight-seed pilot is intended to test workflow feasibility, not statistical significance.
 
 ## Quick start
 

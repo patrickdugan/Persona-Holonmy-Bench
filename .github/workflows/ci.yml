@@ -28,6 +28,10 @@ jobs:
           phb sweep-plan --input runs/pilot.jsonl --layers 0,last \
             --alphas 0,1 --sources ordered --heldout-probes parser_validator \
             --output runs/pilot-plan.json
+          phb pilot-plan --model /example/local-HF-checkpoint \
+            --revision ffffffffffffffffffffffffffffffffffffffff \
+            --output-dir runs/staged-pilot --repetitions 8
+          test -f runs/staged-pilot/plan.json
   mechanistic:
     name: CPU forward-hook tests (Python 3.12)
     runs-on: ubuntu-latest

@@ -1,3 +1,9 @@
+# Current priority: v0.13 frozen Qwen workstation pilot
+
+Read [docs/v013-workstation-pilot.md](docs/v013-workstation-pilot.md). Run `phb pilot-plan` to freeze the eight-seed training/held-out split and forward budgets without loading model weights. On the RTX 5080 with trusted cached HF Qwen weights, explicitly run `phb pilot-stage` in order: capture, fit, graph, select, map, evaluate. Inspect SAE validation FVU, graph paths, selector equivalence and paired held-out causal specificity after every stage. A missing graph path, altered artifact, absent checkpoint or exceeded model-forward budget is a stopping gate. No pretrained Qwen causal or holonomy result has been measured here. Fix compatibility bugs without altering the frozen test partition.
+
+---
+
 # Agent handoff: Qwen causal pilot (2026-10-22)
 
 ## Current priority: v0.11 SAE acquisition and direct-attribution gate

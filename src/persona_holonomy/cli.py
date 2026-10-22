@@ -28,6 +28,7 @@ from .sae_pipeline import capture_plan, collect_hf, fit_topk, export_feature_map
 from .backends import make_backend
 from .protocol import CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
 from .plotting import render_svg
+from .pilot import plan_pilot, run_stage, STAGES
 
 
 def _csv(value: str, allowed: Sequence[str], label: str) -> tuple[str, ...]:
@@ -413,6 +414,25 @@ def command_sae_attribution(args: argparse.Namespace) -> None:
           f"using {result['diagnostics']['total_model_forwards']} forwards; {args.output}")
 
 
+def command_pilot_plan(args: argparse.Namespace) -> None:
+    result = plan_pilot(output_dir=args.output_dir, model=args.model,
+        checkpoint_revision=args.revision, n_seeds=args.repetitions,
+        first_seed=args.first_seed, layers=args.layers,
+        top_features=args.top_features, random_controls=args.random_controls,
+        max_model_forwards=args.max_model_forwards,
+        max_total_tokens=args.max_total_tokens,
+        max_tokens_per_case=args.max_tokens_per_case)
+    print(f"Frozen pilot plan: {args.output_dir}, "
+          f"{result['estimated_graph_forwards_upper_bound']} estimated graph forwards; "
+          "zero model calls")
+
+
+def command_pilot_stage(args: argparse.Namespace) -> None:
+    result = run_stage(plan_path=args.plan, stage=args.stage,
+                       device=args.device, dtype=args.dtype)
+    print(f"Pilot {args.stage}: {result['status']}")
+
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="phb", description=f"Persona Holonomy Bench, version {__version__}"
@@ -724,6 +744,27 @@ def make_parser() -> argparse.ArgumentParser:
     attr.add_argument("--allow-download", action="store_true")
     attr.add_argument("--trust-remote-code", action="store_true")
     attr.set_defaults(func=command_sae_attribution)
+
+    pilot = sub.add_parser("pilot-plan", help="Freeze an offline, budget-capped Qwen/PercInterp pilot")
+    pilot.add_argument("--output-dir", required=True)
+    pilot.add_argument("--model", required=True, help="Exact local Hugging Face checkpoint directory")
+    pilot.add_argument("--revision", required=True, help="Immutable 40-hex commit or 64-hex weights digest")
+    pilot.add_argument("--repetitions", type=int, default=8)
+    pilot.add_argument("--first-seed", type=int, default=100)
+    pilot.add_argument("--layers", default="mid,last")
+    pilot.add_argument("--top-features", type=int, default=4)
+    pilot.add_argument("--random-controls", type=int, default=4)
+    pilot.add_argument("--max-model-forwards", type=int, default=250)
+    pilot.add_argument("--max-total-tokens", type=int, default=1536)
+    pilot.add_argument("--max-tokens-per-case", type=int, default=32)
+    pilot.set_defaults(func=command_pilot_plan)
+
+    stage = sub.add_parser("pilot-stage", help="Run one explicit verified phase of a frozen pilot")
+    stage.add_argument("--plan", required=True, help="Frozen pilot plan.json")
+    stage.add_argument("--stage", choices=STAGES, required=True)
+    stage.add_argument("--device", choices=("cpu", "cuda", "mps"), default="cuda")
+    stage.add_argument("--dtype", choices=("float32", "float16", "bfloat16"), default="float16")
+    stage.set_defaults(func=command_pilot_stage)
 
     return parser
 
