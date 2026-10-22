@@ -1,7 +1,22 @@
 # Agent handoff: Qwen causal pilot (2026-10-22)
 
+## Current priority: v0.11 SAE acquisition and direct-attribution gate
+
+The repository now includes `src/persona_holonomy/sae_pipeline.py` and `docs/v011-sae-acquisition.md`. These close the **local SAE checkpoint acquisition** plumbing gap. Local tests pass; a pretrained Qwen SAE has not been trained in this development environment. PHB's causal holdout must remain untouched.
+
+1. Review `phb sae-capture-plan --help` and generate seeded_v1 cases with `ordered,tail_matched`, `exit`, and `flaky_ci,parser_validator`. Run the offline plan first; inspect train/causal-test and SAE train/validation seed memberships.
+2. On a workstation with a **locally cached trusted HF model**, run `phb sae-capture` with an explicit immutable `--revision`, chosen decoder blocks and bounded token counts. This writes train-only float32 activation archives, with SHA-256 hashes and no raw prompts. Keep the data local.
+3. In a separate process, install the pinned PercInterp source and run `phb sae-fit`, producing actual `TopKSAE.state()` checkpoint files and reconstruction validation FVU. Inspect latent coverage and train/validation differences. For PHB-only scripted data, results are an engineering calibration with narrow coverage.
+4. **Remaining high-priority scientific gate:** derive a properly validated, signed direct-attribution graph between identifiable SAE features, using the same pinned model and PHB train-only histories. Do not generate graph edges from cosine similarity, correlated firing, or invented sample weights. Follow PercInterp E03/E04 conventions where technically applicable; document estimator and reliability controls.
+5. Freeze percolation and comparator selectors with `phb perc-select`; use `phb sae-feature-map` to bind `sae:<block>:<latent>` nodes to hash-checked SAE weights. Pass `phb perc-components-plan` before a held-out causal ablation. Record zero-effect/equal-budget selectors and negative findings.
+6. Test code using `python -m pytest` plus GitHub's pinned PercInterp integration job; identify model revision, tokenizer, hardware, upstream commit, hashes, random seeds, FVU, token/case counts and exact commands. Submit targeted PRs and preserve compatibility with v0.10 component ablation.
+
+**Scientific status:** no empirical pretrained-Qwen validation of persona transfer, SAE causal benefit, or percolation advantage has been reported. Further provenance and evidence are required before claiming model-level findings.
+
+---
+
 **Repository:** https://github.com/patrickdugan/Persona-Holonmy-Bench  
-**Current software:** PHB v0.7.0, `main` (starting commit `aadd1f1dd2953d0767295aefdbeff3896a9cc0ec`).  
+**Current software:** PHB v0.11.0, `main` (SAE acquisition implementation `02dde9a9f4204b7e15a9c2fb929bd0e390f348e8`).  
 **Owner's next action:** Hand this repository to Claude Code or Codex on a Windows workstation with an RTX 5080 16 GB GPU.  
 **Priority:** Run one scientifically interpretable *small* open-weight pilot before expanding the feature work.  
 **License / data boundary:** MIT, public source and synthetic scripted conversation data. Keep credentials, proprietary transcripts, and potentially infohazardous material out of the repo.
