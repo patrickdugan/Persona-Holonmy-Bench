@@ -72,3 +72,32 @@ def test_intervention_report_cli(tmp_path):
     assert report["n_records"] == 1
     assert report["groups"][0]["mean_effect"] == .15
     assert Path(str(output) + ".md").exists()
+
+
+def test_sweep_report_and_svg_cli(tmp_path):
+    input_path = tmp_path / "sweep.jsonl"
+    rows = []
+    for control, effect in (("candidate", .05), ("orthogonal", .01)):
+        rows.append({
+            "schema_version": 2, "experiment": "direction_sweep",
+            "model": "synthetic-fixture", "tokenizer": "toy",
+            "reference_condition": "tail_matched", "layer": 1,
+            "alpha": 1., "mode": "inject", "control": control,
+            "direction_source": "ordered", "phase": "exit", "seed": 3,
+            "probe_id": "flaky_ci", "training_seeds": [1, 2],
+            "recipient_case_id": "test-id", "self_patch_delta": 0.,
+            "effect": effect, "oriented_effect": effect,
+            "first_token_effect": effect, "later_token_effect": 0.,
+        })
+    input_path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    output = tmp_path / "sweep-report"
+    main(["sweep-report", "--input", str(input_path),
+          "--output-prefix", str(output)])
+    report_path = Path(str(output) + ".json")
+    report = json.loads(report_path.read_text())
+    assert report["summaries"][0]["mean_paired_specificity"] == .04
+    svg = tmp_path / "sweep.svg"
+    main(["sweep-plot", "--report", str(report_path),
+          "--output", str(svg)])
+    assert "<svg" in svg.read_text()
+    assert "synthetic-fixture" in svg.read_text()
