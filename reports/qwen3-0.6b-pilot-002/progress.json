@@ -1,0 +1,27 @@
+{
+  "schema": "phb.workstation_pilot.v1",
+  "plan_sha256": "555f1cc2de19cdfc48c7cd8e9055d7151f77cfcd09ec95425cdfe85e65c48484",
+  "completed": {
+    "capture": {
+      "capture/capture-manifest.json": "ba61f17e44804aae3b27d0d8ecaf6092a19851a719090f6995a9a6618c336334"
+    },
+    "fit": {
+      "saes/sae-registry.json": "1321976a3df18acc67317ebe9e8231f412e7100a2a715e1965eb193497cc5ee2"
+    },
+    "graph": {
+      "attribution-plan.json": "b084cba3b5f792a1e211fceebe28c18557b4a7172b5463674148fe24805058d1",
+      "attribution-graph.json": "38b023b5061fef4b615391976b4b908303afa450a343c3135fbb15c5ae4daf8b"
+    },
+    "select": {
+      "perc-selection.json": "12a430b0cb026f44bce444ff25986e4eb88129d07823f6eb976147e766fb48f1"
+    },
+    "map": {
+      "feature-map.json": "9737bbbfe788411fd42ca7941f45baeed3a5a2d41df3eaa46cd3e2d4f6859a9a"
+    },
+    "evaluate": {
+      "component-plan.json": "c7931fe7c5d6c20a367024f8fa1407c9c7c94f023536db1c80d723baff36c5bd",
+      "component-ablation.jsonl": "037a3a3f71352b27c59503277031bf26d22234ed31bc3049ef4b11bc450e8f76",
+      "component-report.json": "962561cd179c8e0043102f7a0a3575d4a53b523fbdeed2004b8f294bc8ecc947"
+    }
+  }
+}

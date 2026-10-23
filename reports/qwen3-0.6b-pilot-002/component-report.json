@@ -1,0 +1,263 @@
+{
+  "schema": "phb.percinterp.component_report.v1",
+  "n_seed_clusters": 3,
+  "n_test_cases": 3,
+  "n_selectors": 7,
+  "model": "C:\\Users\\patri\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-0.6B\\snapshots\\c1899de289a04d12100db370d81485cdf75e47ca",
+  "selection_graph_sha256": "d3f17f88155767fcae98f33492bf40af0ae20fca15655f9273404178c77b145e",
+  "feature_map_sha256": "1a0b29da8cb7e436b103b56a3ab8cc233629df1d93fa99d84b377960dca0a475",
+  "selector_comparisons": {
+    "local_degree": {
+      "n_seed_clusters": 3,
+      "mean_specificity": 0.051662445068359375,
+      "seed_specificities": {
+        "103": 0.060903072357177734,
+        "106": 0.07989811897277832,
+        "107": 0.01418614387512207
+      },
+      "latent_budget": {
+        "27": 4
+      },
+      "selected_node_ids": [
+        "sae:27:1944",
+        "sae:27:2200",
+        "sae:27:2308",
+        "sae:27:3020"
+      ],
+      "within_selector_signflip": {
+        "p_value": 0.25,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "mean_first_token_specificity": 0.5068581899007162,
+      "mean_later_token_specificity": 0.0,
+      "patch_active_fraction": 1.0,
+      "mean_sieve_minus_selector": 0.0,
+      "paired_signflip": {
+        "p_value": 1.0,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "identical_to_sieve": true,
+      "holm_p_value": 1.0
+    },
+    "random_000": {
+      "n_seed_clusters": 3,
+      "mean_specificity": 0.051662445068359375,
+      "seed_specificities": {
+        "103": 0.060903072357177734,
+        "106": 0.07989811897277832,
+        "107": 0.01418614387512207
+      },
+      "latent_budget": {
+        "27": 4
+      },
+      "selected_node_ids": [
+        "sae:27:1944",
+        "sae:27:2200",
+        "sae:27:2308",
+        "sae:27:3020"
+      ],
+      "within_selector_signflip": {
+        "p_value": 0.25,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "mean_first_token_specificity": 0.5068581899007162,
+      "mean_later_token_specificity": 0.0,
+      "patch_active_fraction": 1.0,
+      "mean_sieve_minus_selector": 0.0,
+      "paired_signflip": {
+        "p_value": 1.0,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "identical_to_sieve": true,
+      "holm_p_value": 1.0
+    },
+    "random_001": {
+      "n_seed_clusters": 3,
+      "mean_specificity": 0.051662445068359375,
+      "seed_specificities": {
+        "103": 0.060903072357177734,
+        "106": 0.07989811897277832,
+        "107": 0.01418614387512207
+      },
+      "latent_budget": {
+        "27": 4
+      },
+      "selected_node_ids": [
+        "sae:27:1944",
+        "sae:27:2200",
+        "sae:27:2308",
+        "sae:27:3020"
+      ],
+      "within_selector_signflip": {
+        "p_value": 0.25,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "mean_first_token_specificity": 0.5068581899007162,
+      "mean_later_token_specificity": 0.0,
+      "patch_active_fraction": 1.0,
+      "mean_sieve_minus_selector": 0.0,
+      "paired_signflip": {
+        "p_value": 1.0,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "identical_to_sieve": true,
+      "holm_p_value": 1.0
+    },
+    "random_002": {
+      "n_seed_clusters": 3,
+      "mean_specificity": 0.051662445068359375,
+      "seed_specificities": {
+        "103": 0.060903072357177734,
+        "106": 0.07989811897277832,
+        "107": 0.01418614387512207
+      },
+      "latent_budget": {
+        "27": 4
+      },
+      "selected_node_ids": [
+        "sae:27:1944",
+        "sae:27:2200",
+        "sae:27:2308",
+        "sae:27:3020"
+      ],
+      "within_selector_signflip": {
+        "p_value": 0.25,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "mean_first_token_specificity": 0.5068581899007162,
+      "mean_later_token_specificity": 0.0,
+      "patch_active_fraction": 1.0,
+      "mean_sieve_minus_selector": 0.0,
+      "paired_signflip": {
+        "p_value": 1.0,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "identical_to_sieve": true,
+      "holm_p_value": 1.0
+    },
+    "random_003": {
+      "n_seed_clusters": 3,
+      "mean_specificity": 0.051662445068359375,
+      "seed_specificities": {
+        "103": 0.060903072357177734,
+        "106": 0.07989811897277832,
+        "107": 0.01418614387512207
+      },
+      "latent_budget": {
+        "27": 4
+      },
+      "selected_node_ids": [
+        "sae:27:1944",
+        "sae:27:2200",
+        "sae:27:2308",
+        "sae:27:3020"
+      ],
+      "within_selector_signflip": {
+        "p_value": 0.25,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "mean_first_token_specificity": 0.5068581899007162,
+      "mean_later_token_specificity": 0.0,
+      "patch_active_fraction": 1.0,
+      "mean_sieve_minus_selector": 0.0,
+      "paired_signflip": {
+        "p_value": 1.0,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "identical_to_sieve": true,
+      "holm_p_value": 1.0
+    },
+    "sieve": {
+      "n_seed_clusters": 3,
+      "mean_specificity": 0.051662445068359375,
+      "seed_specificities": {
+        "103": 0.060903072357177734,
+        "106": 0.07989811897277832,
+        "107": 0.01418614387512207
+      },
+      "latent_budget": {
+        "27": 4
+      },
+      "selected_node_ids": [
+        "sae:27:1944",
+        "sae:27:2200",
+        "sae:27:2308",
+        "sae:27:3020"
+      ],
+      "within_selector_signflip": {
+        "p_value": 0.25,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "mean_first_token_specificity": 0.5068581899007162,
+      "mean_later_token_specificity": 0.0,
+      "patch_active_fraction": 1.0
+    },
+    "top_attribution": {
+      "n_seed_clusters": 3,
+      "mean_specificity": 0.051662445068359375,
+      "seed_specificities": {
+        "103": 0.060903072357177734,
+        "106": 0.07989811897277832,
+        "107": 0.01418614387512207
+      },
+      "latent_budget": {
+        "27": 4
+      },
+      "selected_node_ids": [
+        "sae:27:1944",
+        "sae:27:2200",
+        "sae:27:2308",
+        "sae:27:3020"
+      ],
+      "within_selector_signflip": {
+        "p_value": 0.25,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "mean_first_token_specificity": 0.5068581899007162,
+      "mean_later_token_specificity": 0.0,
+      "patch_active_fraction": 1.0,
+      "mean_sieve_minus_selector": 0.0,
+      "paired_signflip": {
+        "p_value": 1.0,
+        "method": "exact_sign_flip",
+        "n_seed_clusters": 3,
+        "null_draws": 8
+      },
+      "identical_to_sieve": true,
+      "holm_p_value": 1.0
+    }
+  },
+  "causal_readout": "baseline-frozen TopK SAE decoder contribution subtraction; positive specificity predicts persona-supporting features",
+  "limitations": [
+    "Uses pre-intervention SAE activations, with reconstruction error preserved; not full counterfactual re-encoding.",
+    "Subtracts feature contributions at the final prefix token only, rather than ablating all generated tokens.",
+    "SAE feature attribution fidelity and source graph construction require separate verification.",
+    "Random orthogonal controls match per-block displacement norm, not every distributional characteristic.",
+    "Fixed style completions may disagree with the model's free-response behavior.",
+    "Selection on held-out labels invalidates the randomization test."
+  ]
+}

@@ -1,0 +1,320 @@
+{
+  "schema": "phb.percinterp.selection.v1",
+  "source_schema": "phb.percinterp.attribution.v1",
+  "graph_sha256": "d3f17f88155767fcae98f33492bf40af0ae20fca15655f9273404178c77b145e",
+  "provenance": {
+    "edge_semantics": "direct_attribution",
+    "estimator": "single_feature_contrast_finite_difference.v1",
+    "model": "C:\\Users\\patri\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-0.6B\\snapshots\\c1899de289a04d12100db370d81485cdf75e47ca",
+    "tokenizer": "C:\\Users\\patri\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-0.6B\\snapshots\\c1899de289a04d12100db370d81485cdf75e47ca",
+    "checkpoint_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "sae_registry_sha256": "c731cc16715321822e6e9e163663f2006442bec101450e7917d9d9dd528addcd",
+    "sae_checkpoints_sha256": {
+      "14": "de3fc6dad441df345bebd1ad2ca748eaa01fd80487ea07f67ac93fbbbaf937d6",
+      "27": "48931b969c65bedae6c27a6ae86f621b08d90d43ac3433d4a88f86cf4e12774e"
+    },
+    "cases_sha256": "5ec72caf80a734f7e62e2d60d43a86981cc8c7cee0d66651f2098b9381a55696",
+    "train_seeds": [
+      100,
+      101,
+      102,
+      104,
+      105
+    ],
+    "training_probe_ids": [
+      "flaky_ci"
+    ],
+    "test_seeds_excluded": [
+      103,
+      106,
+      107
+    ],
+    "test_probe_ids_excluded": [
+      "parser_validator"
+    ],
+    "source": "ordered",
+    "reference": "tail_matched",
+    "phase": "exit",
+    "output_metric": "logit(theatrical_first_token)-logit(plain_first_token)",
+    "patch": "subtract ordered-minus-tail TopK SAE decoded latent contribution at final prefix token",
+    "edge_aggregation": "arithmetic mean of signed single-latent finite differences over training pairs"
+  },
+  "algorithm": "percinterp.sieve with dst-stage degree-entry and within-dst-stage weight shuffles",
+  "n_nodes": 9,
+  "n_edges": 20,
+  "n_nonzero_signed_edges": 20,
+  "dropped_zero_edges": 0,
+  "signed_negative_edges": 14,
+  "directed_p_span_ranked": 0.25,
+  "sieve": {
+    "c_star": 1.0299349291925564,
+    "raw_c_star": 1.0299349291925564,
+    "spanning_threshold_fallback": false,
+    "z_peak": 1.03125,
+    "peak_learned_connectivity": 0.2578125,
+    "shuffle_p_value": 0.21212121212121213,
+    "null_shuffles": 32,
+    "z_min": 3.0,
+    "curve": {
+      "c": [
+        0.25,
+        0.2651914895927191,
+        0.2813061046096209,
+        0.2983999396518025,
+        0.31653249796255595,
+        0.3357668985567781,
+        0.3561700959367975,
+        0.37781311315944394,
+        0.4007712890656619,
+        0.4251245405332683,
+        0.45095764066575084,
+        0.4783605138854744,
+        0.5074285489585101,
+        0.5382629310407171,
+        0.5709709939009232,
+        0.6056665935472846,
+        0.6424705045574093,
+        0.6815108404918607,
+        0.72292349985449,
+        0.7668526391519762,
+        0.8134511746992817,
+        0.8628813149177987,
+        0.9153151249791007,
+        0.9709351257598142,
+        1.0299349291925564,
+        1.0925199122245826,
+        1.1589079317301751,
+        1.2293300828653693,
+        1.3040315035048322,
+        1.383272227561118,
+        1.4673280901566863,
+        1.556491687799565,
+        1.6510733969050082,
+        1.7514024542085993,
+        1.8578281028316896,
+        1.970720807988604,
+        2.0904735465674595,
+        2.217503175073596,
+        2.3522518806974038,
+        2.4951887205576777,
+        2.646811254478566,
+        2.8076472769837766,
+        2.9782566545370774,
+        3.1592332744244622,
+        3.3512071120620273,
+        3.5548464239257718,
+        3.770860073736905,
+        4.0
+      ],
+      "backbone": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "shuffled_mean": [
+        0.0703125,
+        0.0703125,
+        0.0703125,
+        0.0703125,
+        0.0703125,
+        0.0703125,
+        0.0703125,
+        0.0703125,
+        0.0703125,
+        0.0703125,
+        0.0703125,
+        0.0703125,
+        0.1328125,
+        0.1328125,
+        0.1328125,
+        0.1328125,
+        0.1328125,
+        0.1328125,
+        0.1328125,
+        0.1484375,
+        0.1484375,
+        0.1484375,
+        0.1484375,
+        0.1484375,
+        0.7421875,
+        0.7421875,
+        0.7421875,
+        0.7421875,
+        0.8359375,
+        0.8359375,
+        0.8359375,
+        0.8984375,
+        0.8984375,
+        0.9375,
+        0.9375,
+        0.9375,
+        0.953125,
+        0.953125,
+        0.9765625,
+        0.9765625,
+        0.9921875,
+        0.9921875,
+        0.9921875,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  },
+  "stage_quotas": {
+    "1": 4
+  },
+  "selected_nodes": {
+    "sieve": [
+      "sae:27:1944",
+      "sae:27:2200",
+      "sae:27:2308",
+      "sae:27:3020"
+    ],
+    "local_degree": [
+      "sae:27:1944",
+      "sae:27:2200",
+      "sae:27:2308",
+      "sae:27:3020"
+    ],
+    "top_attribution": [
+      "sae:27:1944",
+      "sae:27:2200",
+      "sae:27:2308",
+      "sae:27:3020"
+    ],
+    "random_000": [
+      "sae:27:1944",
+      "sae:27:2200",
+      "sae:27:2308",
+      "sae:27:3020"
+    ],
+    "random_001": [
+      "sae:27:1944",
+      "sae:27:2200",
+      "sae:27:2308",
+      "sae:27:3020"
+    ],
+    "random_002": [
+      "sae:27:1944",
+      "sae:27:2200",
+      "sae:27:2308",
+      "sae:27:3020"
+    ],
+    "random_003": [
+      "sae:27:1944",
+      "sae:27:2200",
+      "sae:27:2308",
+      "sae:27:3020"
+    ]
+  },
+  "selected_decoder_blocks": {
+    "sieve": [
+      27
+    ],
+    "local_degree": [
+      27
+    ],
+    "top_attribution": [
+      27
+    ],
+    "random_000": [
+      27
+    ],
+    "random_001": [
+      27
+    ],
+    "random_002": [
+      27
+    ],
+    "random_003": [
+      27
+    ]
+  },
+  "node_to_decoder_block": {
+    "sae:14:628": 14,
+    "sae:14:184": 14,
+    "sae:14:3556": 14,
+    "sae:14:3546": 14,
+    "sae:27:2200": 27,
+    "sae:27:2308": 27,
+    "sae:27:3020": 27,
+    "sae:27:1944": 27,
+    "output:first_token_style_logodds": null
+  },
+  "random_seed": 20261022,
+  "comparators": [
+    "local_degree",
+    "top_attribution",
+    "random_000",
+    "random_001",
+    "random_002",
+    "random_003"
+  ],
+  "selector_identical_to_sieve": {
+    "sieve": true,
+    "local_degree": true,
+    "top_attribution": true,
+    "random_000": true,
+    "random_001": true,
+    "random_002": true,
+    "random_003": true
+  },
+  "status": "graph_only_candidate_selection",
+  "limitations": [
+    "Edges must come from a valid upstream *direct* attribution estimator; PHB hidden vectors are not edges.",
+    "The sieve retains absolute edge weight for ranking; signed weights are tracked separately.",
+    "A graph-only p-value is not a causal intervention p-value.",
+    "Decoder-block mappings are explicit, not inferred from topological stages.",
+    "Decoder-block steering is weaker evidence than per-component patching.",
+    "Selector design and graph provenance must be frozen before held-out outcomes are inspected."
+  ],
+  "graph_file_sha256": "38b023b5061fef4b615391976b4b908303afa450a343c3135fbb15c5ae4daf8b"
+}

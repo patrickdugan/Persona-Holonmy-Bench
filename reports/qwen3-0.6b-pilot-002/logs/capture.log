@@ -1,0 +1,5 @@
+vramorama: lease d7351b16 waits for 4,096 MiB on NVIDIA GeForce RTX 5080 Laptop GPU: 15,403 MiB free; confirming it stays free and stops growing for 15s
+vramorama: lease d7351b16 admitted after 19s; starting .venv/Scripts/python.exe -u -m persona_holonomy pilot-stage --plan runs\qwen-pilot-002\plan.json --stage capture
+vramorama: holding the machine awake with the screen on while the job runs (no setting changes; --no-keep-awake opts out)
+Captured 2 SAE layers using training-only cases in C:\Users\patri\Documents\GitHub\MoralityLabAI\Persona-Holonmy-Bench\runs\qwen-pilot-002\capture
+Pilot capture: completed

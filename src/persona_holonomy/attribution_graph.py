@@ -383,8 +383,10 @@ def graph_hf(*, cases_path: str, registry_path: str, output_path: str,
         raise FileExistsError("Attribution graph output exists; choose a new output")
     cases = _read_cases(cases_path)
     registry = _load_json(registry_path)
+    # max_total_tokens bounds measured forwards; the offline preflight does not take it.
     graph_plan(cases=cases, registry=registry, model_name=model_name,
-               registry_root=Path(registry_path).parent, **kwargs)
+               registry_root=Path(registry_path).parent,
+               **{k: v for k, v in kwargs.items() if k != "max_total_tokens"})
     try:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer

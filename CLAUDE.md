@@ -8,7 +8,7 @@ Build a reproducible, falsifiable test of conversation-conditioned persona persi
 
 Current repository: `patrickdugan/Persona-Holonmy-Bench` (the repository name is intentionally spelled **Holonmy**). Baseline v0.13 commit: `4482ae41b05f6e5ffed712dca426e080c35c8b6d`. GitHub Actions run `39814548641` completed **successfully** (verified 2026-10-23). The tested implementation provides a six-stage pilot: capture → fit → graph → select → map → evaluate. Earlier v0.7 provides separate free-generation/blinded-response validation.
 
-**Empirical status:** toy-decoder and synthetic integration checks are passing. There is **no pretrained-Qwen SAE training, signed graph, component-ablation result, or measured holonomy result** from this project yet. Do not present synthetic tests as model-science findings.
+**Empirical status:** toy-decoder and synthetic integration checks are passing. The first pretrained run (Qwen3-0.6B @ `c1899de`, 2026-10-23) completed all six stages as a **shakedown**. See [reports/qwen3-0.6b-pilot.md](reports/qwen3-0.6b-pilot.md). The block-14 SAE fails reconstruction (validation FVU 1.01). All selectors coincided, so percolation was not compared against the alternatives. Held-out specificity over orthogonal nulls was +0.052 log-odds (3/3 seeds, p = 0.25 floor). There is no measured holonomy result. Do not present synthetic tests or this shakedown as model-science findings.
 
 ## First actions for Claude
 

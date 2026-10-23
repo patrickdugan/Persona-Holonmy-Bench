@@ -1,0 +1,288 @@
+{
+  "schema": "phb.percinterp.attribution.v1",
+  "provenance": {
+    "edge_semantics": "direct_attribution",
+    "estimator": "single_feature_contrast_finite_difference.v1",
+    "model": "C:\\Users\\patri\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-0.6B\\snapshots\\c1899de289a04d12100db370d81485cdf75e47ca",
+    "tokenizer": "C:\\Users\\patri\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-0.6B\\snapshots\\c1899de289a04d12100db370d81485cdf75e47ca",
+    "checkpoint_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "sae_registry_sha256": "c731cc16715321822e6e9e163663f2006442bec101450e7917d9d9dd528addcd",
+    "sae_checkpoints_sha256": {
+      "14": "de3fc6dad441df345bebd1ad2ca748eaa01fd80487ea07f67ac93fbbbaf937d6",
+      "27": "48931b969c65bedae6c27a6ae86f621b08d90d43ac3433d4a88f86cf4e12774e"
+    },
+    "cases_sha256": "5ec72caf80a734f7e62e2d60d43a86981cc8c7cee0d66651f2098b9381a55696",
+    "train_seeds": [
+      100,
+      101,
+      102,
+      104,
+      105
+    ],
+    "training_probe_ids": [
+      "flaky_ci"
+    ],
+    "test_seeds_excluded": [
+      103,
+      106,
+      107
+    ],
+    "test_probe_ids_excluded": [
+      "parser_validator"
+    ],
+    "source": "ordered",
+    "reference": "tail_matched",
+    "phase": "exit",
+    "output_metric": "logit(theatrical_first_token)-logit(plain_first_token)",
+    "patch": "subtract ordered-minus-tail TopK SAE decoded latent contribution at final prefix token",
+    "edge_aggregation": "arithmetic mean of signed single-latent finite differences over training pairs"
+  },
+  "nodes": [
+    {
+      "id": "sae:14:628",
+      "stage": 0,
+      "decoder_block": 14
+    },
+    {
+      "id": "sae:14:184",
+      "stage": 0,
+      "decoder_block": 14
+    },
+    {
+      "id": "sae:14:3556",
+      "stage": 0,
+      "decoder_block": 14
+    },
+    {
+      "id": "sae:14:3546",
+      "stage": 0,
+      "decoder_block": 14
+    },
+    {
+      "id": "sae:27:2200",
+      "stage": 1,
+      "decoder_block": 27
+    },
+    {
+      "id": "sae:27:2308",
+      "stage": 1,
+      "decoder_block": 27
+    },
+    {
+      "id": "sae:27:3020",
+      "stage": 1,
+      "decoder_block": 27
+    },
+    {
+      "id": "sae:27:1944",
+      "stage": 1,
+      "decoder_block": 27
+    },
+    {
+      "id": "output:first_token_style_logodds",
+      "stage": 2
+    }
+  ],
+  "edges": [
+    {
+      "source": "sae:14:184",
+      "target": "sae:27:1944",
+      "signed_weight": -0.001149749755859375,
+      "mean_absolute_effect": 0.0018642425537109375,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.2
+    },
+    {
+      "source": "sae:14:184",
+      "target": "sae:27:2200",
+      "signed_weight": -0.0014560699462890625,
+      "mean_absolute_effect": 0.0030963897705078127,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.4
+    },
+    {
+      "source": "sae:14:184",
+      "target": "sae:27:2308",
+      "signed_weight": 0.000881195068359375,
+      "mean_absolute_effect": 0.00121917724609375,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.8
+    },
+    {
+      "source": "sae:14:184",
+      "target": "sae:27:3020",
+      "signed_weight": 0.00211029052734375,
+      "mean_absolute_effect": 0.00211029052734375,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 1.0
+    },
+    {
+      "source": "sae:14:3546",
+      "target": "sae:27:1944",
+      "signed_weight": -0.001468658447265625,
+      "mean_absolute_effect": 0.0035106658935546873,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.4
+    },
+    {
+      "source": "sae:14:3546",
+      "target": "sae:27:2200",
+      "signed_weight": -0.0025848388671875,
+      "mean_absolute_effect": 0.0025848388671875,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.0
+    },
+    {
+      "source": "sae:14:3546",
+      "target": "sae:27:2308",
+      "signed_weight": -0.0016201019287109375,
+      "mean_absolute_effect": 0.0033329010009765627,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.4
+    },
+    {
+      "source": "sae:14:3546",
+      "target": "sae:27:3020",
+      "signed_weight": 0.00077667236328125,
+      "mean_absolute_effect": 0.00231475830078125,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.6
+    },
+    {
+      "source": "sae:14:3556",
+      "target": "sae:27:1944",
+      "signed_weight": -0.002112579345703125,
+      "mean_absolute_effect": 0.0033481597900390627,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.2
+    },
+    {
+      "source": "sae:14:3556",
+      "target": "sae:27:2200",
+      "signed_weight": -0.0012998580932617188,
+      "mean_absolute_effect": 0.0026075363159179686,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.2
+    },
+    {
+      "source": "sae:14:3556",
+      "target": "sae:27:2308",
+      "signed_weight": -0.0005474090576171875,
+      "mean_absolute_effect": 0.0044612884521484375,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.6
+    },
+    {
+      "source": "sae:14:3556",
+      "target": "sae:27:3020",
+      "signed_weight": 0.001369476318359375,
+      "mean_absolute_effect": 0.002425384521484375,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.6
+    },
+    {
+      "source": "sae:14:628",
+      "target": "sae:27:1944",
+      "signed_weight": -0.006860923767089844,
+      "mean_absolute_effect": 0.006860923767089844,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.0
+    },
+    {
+      "source": "sae:14:628",
+      "target": "sae:27:2200",
+      "signed_weight": -0.004146194458007813,
+      "mean_absolute_effect": 0.004146194458007813,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.0
+    },
+    {
+      "source": "sae:14:628",
+      "target": "sae:27:2308",
+      "signed_weight": -0.004630279541015625,
+      "mean_absolute_effect": 0.004630279541015625,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.0
+    },
+    {
+      "source": "sae:14:628",
+      "target": "sae:27:3020",
+      "signed_weight": -0.00482635498046875,
+      "mean_absolute_effect": 0.00482635498046875,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.0
+    },
+    {
+      "source": "sae:27:1944",
+      "target": "output:first_token_style_logodds",
+      "signed_weight": -0.00546875,
+      "mean_absolute_effect": 0.00546875,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.0
+    },
+    {
+      "source": "sae:27:2200",
+      "target": "output:first_token_style_logodds",
+      "signed_weight": 0.0140625,
+      "mean_absolute_effect": 0.0140625,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 1.0
+    },
+    {
+      "source": "sae:27:2308",
+      "target": "output:first_token_style_logodds",
+      "signed_weight": 0.00546875,
+      "mean_absolute_effect": 0.00546875,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 1.0
+    },
+    {
+      "source": "sae:27:3020",
+      "target": "output:first_token_style_logodds",
+      "signed_weight": -0.00546875,
+      "mean_absolute_effect": 0.00546875,
+      "n_training_pairs": 5,
+      "positive_effect_fraction": 0.0
+    }
+  ],
+  "sources": [
+    "sae:14:628",
+    "sae:14:184",
+    "sae:14:3556",
+    "sae:14:3546"
+  ],
+  "sinks": [
+    "output:first_token_style_logodds"
+  ],
+  "diagnostics": {
+    "n_train_pairs": 5,
+    "candidate_blocks": [
+      14,
+      27
+    ],
+    "candidate_counts": {
+      "14": 4,
+      "27": 4
+    },
+    "total_model_forwards": 50,
+    "zero_contrast_patches_skipped": 0,
+    "edges_emitted": 20,
+    "has_measured_source_to_sink_path": true,
+    "graph_status": "spanning",
+    "max_sae_validation_fvu": 1.0135861067741134,
+    "training_case_id_hashes": [
+      "3e0356a857e790b81becbefbdafeb5388b46895dd04e6d4ad9852b7577d54457",
+      "fc6bd020cabfb1949608924981f6f0ff2df9f52df8de5956d1102effa2c115fc",
+      "298e63576a0a434dd880f6623235b838c2ddcdbb4ead1b35a424db95411e604e",
+      "631f1164eec7615eb9b2f81b52689f098a8c13fab9dd3ede090bb7ccfb6bcf2e",
+      "2d41ad1a006fcea182b6da1de00c8a81a25df55fbd3ece828de6080acb6a4f20"
+    ]
+  },
+  "limitations": [
+    "Adjacent-stage signed intervention responses are local, context-dependent total effects, not a unique additive path decomposition.",
+    "First-stage SAE features are graph sources, not available as interior PercInterp selector nodes.",
+    "Fixed first-token style log-odds may differ from free-generation behavior.",
+    "Signed effects can cancel across training histories; zero-mean edges are omitted.",
+    "Only training seeds/probes influence feature candidate ranking and edge weights."
+  ]
+}

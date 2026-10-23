@@ -9,7 +9,7 @@ import pytest
 
 from persona_holonomy.attribution_graph import (
     ESTIMATOR, GRAPH_SCHEMA, PLAN_SCHEMA, _encode, _style_tokens,
-    graph_plan, graph_plan_file, measure_graph,
+    graph_hf, graph_plan, graph_plan_file, measure_graph,
 )
 from persona_holonomy.perc_components import _hash_file
 from persona_holonomy.protocol import PROBES, build_cases
@@ -148,6 +148,25 @@ def test_signed_interventions_export_training_graph(tmp_path):
     ids, stages, mapped, direct, provenance = _read_graph(graph)
     assert len(ids) == len(stages) and len(direct) == len(graph["edges"])
     assert mapped[graph["sources"][0]] == 0
+
+
+def test_hf_entrypoint_accepts_cli_token_budget(tmp_path, monkeypatch):
+    # sae-attribution forwards --max-total-tokens; the preflight must not reject it.
+    transformers = pytest.importorskip("transformers")
+    model, tok, cases, registry = fixture(tmp_path)
+    monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained",
+                        lambda *_a, **_k: tok)
+    monkeypatch.setattr(transformers.AutoModelForCausalLM, "from_pretrained",
+                        lambda *_a, **_k: model)
+    cases_path, registry_path = tmp_path / "cases.jsonl", tmp_path / "sae-registry.json"
+    cases_path.write_text("".join(json.dumps(c) + "\n" for c in cases), encoding="utf-8")
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+    graph = graph_hf(cases_path=str(cases_path), registry_path=str(registry_path),
+        output_path=str(tmp_path / "graph.json"), model_name="toy", device="cpu",
+        dtype="float32", top_features=3, max_total_tokens=512)
+    assert graph == measure_graph(cases=cases, registry=registry, model=model,
+        tokenizer=tok, model_name="toy", registry_root=tmp_path,
+        top_features=3, max_total_tokens=512)
 
 
 def test_offline_plan_cli_contract(tmp_path):

@@ -1,0 +1,7 @@
+vramorama: lease 426819c0 waits for 4,096 MiB on NVIDIA GeForce RTX 5080 Laptop GPU: 15,403 MiB free; confirming it stays free and stops growing for 15s
+vramorama: lease 426819c0 waits for 4,096 MiB on NVIDIA GeForce RTX 5080 Laptop GPU: 15,399 MiB free; confirming it stays free and stops growing for 15s
+vramorama: lease 426819c0 admitted after 16s; starting .venv/Scripts/python.exe -u -m persona_holonomy pilot-stage --plan runs\qwen-pilot-002\plan.json --stage graph
+vramorama: holding the machine awake with the screen on while the job runs (no setting changes; --no-keep-awake opts out)
+Attribution plan: 5 training pairs, at most 50 forwards; C:\Users\patri\Documents\GitHub\MoralityLabAI\Persona-Holonmy-Bench\runs\qwen-pilot-002\attribution-plan.json
+Measured 20 signed training-only edges using 50 forwards; C:\Users\patri\Documents\GitHub\MoralityLabAI\Persona-Holonmy-Bench\runs\qwen-pilot-002\attribution-graph.json
+Pilot graph: completed

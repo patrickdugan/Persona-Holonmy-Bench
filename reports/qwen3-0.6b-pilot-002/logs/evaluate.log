@@ -1,0 +1,9 @@
+vramorama: lease 954a2acf waits for 4,096 MiB on NVIDIA GeForce RTX 5080 Laptop GPU: 15,403 MiB free; confirming it stays free and stops growing for 15s
+vramorama: lease 954a2acf waits for 4,096 MiB on NVIDIA GeForce RTX 5080 Laptop GPU: 15,399 MiB free; confirming it stays free and stops growing for 15s
+vramorama: lease 954a2acf waits for 4,096 MiB on NVIDIA GeForce RTX 5080 Laptop GPU: 15,403 MiB free; confirming it stays free and stops growing for 15s
+vramorama: lease 954a2acf admitted after 17s; starting .venv/Scripts/python.exe -u -m persona_holonomy pilot-stage --plan runs\qwen-pilot-002\plan.json --stage evaluate
+vramorama: holding the machine awake with the screen on while the job runs (no setting changes; --no-keep-awake opts out)
+Planned 3 held-out component trials, 99 forwards; saved C:\Users\patri\Documents\GitHub\MoralityLabAI\Persona-Holonmy-Bench\runs\qwen-pilot-002\component-plan.json
+Recorded 21 held-out selector ablation rows in C:\Users\patri\Documents\GitHub\MoralityLabAI\Persona-Holonmy-Bench\runs\qwen-pilot-002\component-ablation.jsonl
+Reported 7 selectors across 3 seeds to C:\Users\patri\Documents\GitHub\MoralityLabAI\Persona-Holonmy-Bench\runs\qwen-pilot-002\component-report.json
+Pilot evaluate: completed

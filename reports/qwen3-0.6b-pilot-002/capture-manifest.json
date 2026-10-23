@@ -1,0 +1,154 @@
+{
+  "schema": "phb.sae.activations.v1",
+  "source": "ordered",
+  "reference": "tail_matched",
+  "phase": "exit",
+  "split_seed": 20261022,
+  "holdout_fraction": 0.4,
+  "sae_validation_fraction": 0.25,
+  "phb_train_seeds": [
+    100,
+    101,
+    102,
+    104,
+    105
+  ],
+  "phb_test_seeds_excluded": [
+    103,
+    106,
+    107
+  ],
+  "phb_training_probes": [
+    "flaky_ci"
+  ],
+  "phb_test_probes_excluded": [
+    "parser_validator"
+  ],
+  "sae_fit_seeds": [
+    100,
+    101,
+    104,
+    105
+  ],
+  "sae_validation_seeds": [
+    102
+  ],
+  "selected_cases": [
+    {
+      "case_id": "ordered.exit.flaky_ci.s100.v1",
+      "seed": 100,
+      "probe_id": "flaky_ci",
+      "condition": "ordered",
+      "role": "fit",
+      "messages_sha256": "1c09d2031d00d7ce136cd2c76b5aef10a81a330da1206f7cadf841f964491821"
+    },
+    {
+      "case_id": "ordered.exit.flaky_ci.s101.v1",
+      "seed": 101,
+      "probe_id": "flaky_ci",
+      "condition": "ordered",
+      "role": "fit",
+      "messages_sha256": "62494bce8938e21718583172ff14735fadfa23a0ae68cb5d1637a14ba14f2329"
+    },
+    {
+      "case_id": "ordered.exit.flaky_ci.s102.v1",
+      "seed": 102,
+      "probe_id": "flaky_ci",
+      "condition": "ordered",
+      "role": "validation",
+      "messages_sha256": "727d8c68f66d19c1ab23183e8c4ba0950cc010451c37a878e6bf6ef96883baa5"
+    },
+    {
+      "case_id": "ordered.exit.flaky_ci.s104.v1",
+      "seed": 104,
+      "probe_id": "flaky_ci",
+      "condition": "ordered",
+      "role": "fit",
+      "messages_sha256": "f59ef707a1dd9249a8583ce5c69edca47fb5ce4854248304c550eb66f956dadf"
+    },
+    {
+      "case_id": "ordered.exit.flaky_ci.s105.v1",
+      "seed": 105,
+      "probe_id": "flaky_ci",
+      "condition": "ordered",
+      "role": "fit",
+      "messages_sha256": "1045df95b54ab1b33880fc81a07d2e4691871106a0f14d42902de2eaa3c0f06f"
+    },
+    {
+      "case_id": "tail_matched.exit.flaky_ci.s100.v1",
+      "seed": 100,
+      "probe_id": "flaky_ci",
+      "condition": "tail_matched",
+      "role": "fit",
+      "messages_sha256": "1fdf0df2345cf2c5be41f8600bf27c59d8d251257be6ab555249675b1cac8ace"
+    },
+    {
+      "case_id": "tail_matched.exit.flaky_ci.s101.v1",
+      "seed": 101,
+      "probe_id": "flaky_ci",
+      "condition": "tail_matched",
+      "role": "fit",
+      "messages_sha256": "41ed270a9d5562f6a76ce19d055b6db8a53b60fc39f409e255f49887ea5b6676"
+    },
+    {
+      "case_id": "tail_matched.exit.flaky_ci.s102.v1",
+      "seed": 102,
+      "probe_id": "flaky_ci",
+      "condition": "tail_matched",
+      "role": "validation",
+      "messages_sha256": "3559759b7bdf75127f3139100510749119c87ff1edd65762ca44a2dd6ae118b0"
+    },
+    {
+      "case_id": "tail_matched.exit.flaky_ci.s104.v1",
+      "seed": 104,
+      "probe_id": "flaky_ci",
+      "condition": "tail_matched",
+      "role": "fit",
+      "messages_sha256": "839ac686c74b63280150cecf45b5c2a8893dae23084f4c3c16adcc2968430835"
+    },
+    {
+      "case_id": "tail_matched.exit.flaky_ci.s105.v1",
+      "seed": 105,
+      "probe_id": "flaky_ci",
+      "condition": "tail_matched",
+      "role": "fit",
+      "messages_sha256": "0ffde8a87458532d794fe6ad000b7c0a39d3552cbaf33df4c67dda71dd2d04a7"
+    }
+  ],
+  "n_selected_cases": 10,
+  "input_cases_sha256": "5ec72caf80a734f7e62e2d60d43a86981cc8c7cee0d66651f2098b9381a55696",
+  "warnings": [
+    "Only PHB causal-training seeds and technical probes are captured.",
+    "SAE validation is a subset of PHB causal-training seeds, and is not causal evaluation.",
+    "Scripted PHB conversations are far too narrow to validate a general-purpose SAE.",
+    "Activation matrices can leak information about their input; keep them local."
+  ],
+  "model": "C:\\Users\\patri\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-0.6B\\snapshots\\c1899de289a04d12100db370d81485cdf75e47ca",
+  "tokenizer": "C:\\Users\\patri\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-0.6B\\snapshots\\c1899de289a04d12100db370d81485cdf75e47ca",
+  "checkpoint_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+  "block_path": "model.layers",
+  "requested_layers": "mid,last",
+  "max_input_tokens": 1536,
+  "max_tokens_per_case": 32,
+  "capture_seed": 20261022,
+  "token_counts": {
+    "fit": 256,
+    "validation": 64
+  },
+  "blocks": {
+    "14": {
+      "path": "block-014.npz",
+      "sha256": "8cfa08835cb2e7a83fb17219f7584816454ba480d723bf4890ae846f55bbe5ef",
+      "n_train_tokens": 256,
+      "n_validation_tokens": 64,
+      "hidden_width": 1024
+    },
+    "27": {
+      "path": "block-027.npz",
+      "sha256": "a975a601aad0ec1e4aca04d1bb07fc1e48a6c20e991bca5d61609a2ef2d2ea93",
+      "n_train_tokens": 256,
+      "n_validation_tokens": 64,
+      "hidden_width": 1024
+    }
+  }
+}

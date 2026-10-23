@@ -1,0 +1,4 @@
+Trained 2 PercInterp TopK SAEs in C:\Users\patri\Documents\GitHub\MoralityLabAI\Persona-Holonmy-Bench\runs\qwen-pilot-002\saes
+  block 14: validation FVU=1.0136; coverage=0.028
+  block 27: validation FVU=0.6044; coverage=0.021
+Pilot fit: completed
