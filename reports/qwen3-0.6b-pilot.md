@@ -14,13 +14,13 @@ Summary: `Qwen checkpoint/revision: Qwen/Qwen3-0.6B @ c1899de289a04d12100db370d8
 | Tokenizer | `tokenizer.json` SHA-256 `aeb13307…2dae4` matches upstream LFS oid; `config.json`, `tokenizer_config.json`, `generation_config.json`, `vocab.json`, `merges.txt` git-blob SHA-1s match upstream |
 | Code | branch `qwen3-0.6b-pilot` from `9cd077e` (v0.13), plus the `graph_hf` fix below |
 | PercInterp | `c0b3f6abf8e847292aaf1e21b8f4b804fd4d8ce0` (CI pin) |
-| Python / libs | CPython 3.12.10, torch 2.11.0+cu128, transformers 5.17.0, numpy 2.5.3, scipy 1.18.1, safetensors 0.8.0, pytest 9.1.1 |
+| Python / libs | CPython 3.12.10, torch 2.11.0+cu128, safetensors 0.8.0, pytest 9.1.1; transformers 5.17.0 / numpy 2.5.3 (pilot-002) and 5.20.2 / 2.5.4 (pilot-003), scipy 1.18.1 |
 | GPU | NVIDIA GeForce RTX 5080 Laptop GPU, 16 GB, driver 577.05; GPU stages run under a 4 GB `vramorama` lease |
 | Peak VRAM | 1514 MiB (graph), 1748 MiB (evaluate); whole-card `nvidia-smi` samples at 500 ms, nothing else running on the card |
 | dtype / device | float16 CUDA for capture/graph/evaluate; SAE fit on CPU (runner defaults) |
 | Tests | `python -m pytest`: 86 passed, 0 skipped (85 at v0.13 plus one regression test) |
 
-Environment note: the C: drive had about 270 MB free, so the venv borrows torch/transformers from a sibling project's venv through a `.pth` file. It does not run `pip install -e '.[test,mechanistic]'`. PercInterp (pinned commit), scipy and PHB (`-e .`) are installed in the venv itself.
+Environment note: pilot-002 ran in a venv that borrowed torch 2.11.0+cu128 and transformers 5.17.0 from a sibling project through a `.pth` file, because the disk was full at the time. After space was freed, the pilot was rerun as `runs/qwen-pilot-003` in a standalone venv built the documented way: `pip install torch==2.11.0 --index-url …/whl/cu128`, then `pip install 'git+…percolation-interp@c0b3f6a' -e '.[test,mechanistic,sae]'`. That venv resolved transformers 5.20.2, numpy 2.5.4 and scipy 1.18.1, and its tests were 86 passed, 0 skipped. **Every pilot-003 artifact is byte-identical to pilot-002**: the cases, both activation archives, both SAE checkpoints, the attribution graph, the selection, the feature map, the ablation rows and the component report. The results therefore do not depend on the transformers 5.17 → 5.20 change or on the borrowed environment.
 
 ## Commands
 
