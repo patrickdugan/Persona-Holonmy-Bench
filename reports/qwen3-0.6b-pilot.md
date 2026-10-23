@@ -2,7 +2,7 @@
 
 **Shakedown only.** This is the first PHB pipeline run on pretrained weights. Three held-out seeds cannot give a two-sided exact sign-flip p-value below 0.25. Nothing here supports a claim about persona transfer, percolation advantage, or holonomy.
 
-Summary: `Qwen checkpoint/revision: Qwen/Qwen3-0.6B @ c1899de289a04d12100db370d81485cdf75e47ca; stages completed: capture, fit, graph, select, map, evaluate (pilot-002); CI: pending, not pushed from the workstation; science gates: block-14 SAE fails reconstruction (validation FVU 1.01), all seven selectors coincide, later-token effect structurally zero; evidence: the training-selected block-27 latents lower the held-out style margin more than norm-matched orthogonal nulls in 3/3 seeds (+0.052 log-odds, p = 0.25, the floor); next action: larger SAE corpus and candidate pool, plus a non-final block, before any selector comparison.`
+Summary: `Qwen checkpoint/revision: Qwen/Qwen3-0.6B @ c1899de289a04d12100db370d81485cdf75e47ca; stages completed: capture, fit, graph, select, map, evaluate (pilot-002); CI: [run 39888328103](https://github.com/patrickdugan/Persona-Holonmy-Bench/actions/runs/39888328103) passed on `3c0ae1f` (code and artifacts as reported here; later commits only touch this report); science gates: block-14 SAE fails reconstruction (validation FVU 1.01), all seven selectors coincide, later-token effect structurally zero; evidence: the training-selected block-27 latents lower the held-out style margin more than norm-matched orthogonal nulls in 3/3 seeds (+0.052 log-odds, p = 0.25, the floor); next action: larger SAE corpus and candidate pool, plus a non-final block, before any selector comparison.`
 
 ## Checkpoint and environment
 
@@ -18,7 +18,7 @@ Summary: `Qwen checkpoint/revision: Qwen/Qwen3-0.6B @ c1899de289a04d12100db370d8
 | GPU | NVIDIA GeForce RTX 5080 Laptop GPU, 16 GB, driver 577.05; GPU stages run under a 4 GB `vramorama` lease |
 | Peak VRAM | 1514 MiB (graph), 1748 MiB (evaluate); whole-card `nvidia-smi` samples at 500 ms, nothing else running on the card |
 | dtype / device | float16 CUDA for capture/graph/evaluate; SAE fit on CPU (runner defaults) |
-| Tests | `python -m pytest`: 86 passed, 0 skipped (85 at v0.13 plus one regression test) |
+| Tests | `python -m pytest`: 86 passed, 0 skipped (85 at v0.13 plus one regression test); re-run in the pilot-003 venv after a forced workstation restart on 2026-10-23, still 86 passed |
 
 Environment note: pilot-002 ran in a venv that borrowed torch 2.11.0+cu128 and transformers 5.17.0 from a sibling project through a `.pth` file, because the disk was full at the time. After space was freed, the pilot was rerun as `runs/qwen-pilot-003` in a standalone venv built the documented way: `pip install torch==2.11.0 --index-url …/whl/cu128`, then `pip install 'git+…percolation-interp@c0b3f6a' -e '.[test,mechanistic,sae]'`. That venv resolved transformers 5.20.2, numpy 2.5.4 and scipy 1.18.1, and its tests were 86 passed, 0 skipped. **Every pilot-003 artifact is byte-identical to pilot-002**: the cases, both activation archives, both SAE checkpoints, the attribution graph, the selection, the feature map, the ablation rows and the component report. The results therefore do not depend on the transformers 5.17 → 5.20 change or on the borrowed environment.
 
