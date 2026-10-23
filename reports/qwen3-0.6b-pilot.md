@@ -104,3 +104,5 @@ The four training-selected block-27 SAE latents carry a small, seed-consistent s
 ## Artifacts
 
 `reports/qwen3-0.6b-pilot-002/` holds byte-identical copies of the pilot-002 JSON outputs (their SHA-256s match `progress.json`) and the stage logs. Activation archives (`*.npz`) and SAE checkpoints (`*.pt`) stay local under `runs/qwen-pilot-002/` (66 MB) per the data boundary. They can be regenerated deterministically with the commands above.
+
+Line endings: on Windows, PHB writes its outputs with CRLF, and the recorded file SHA-256s (`plan.json` `case_file_sha256`, `progress.json`) are hashes of those CRLF bytes. `.gitattributes` keeps these artifacts byte-exact in git. A rerun on Linux writes LF, so its file hashes will differ even when the content is the same. The canonical-JSON digests inside the artifacts (`input_cases_sha256` / `cases_sha256` = `5ec72caf…5696`) do not depend on the platform.
