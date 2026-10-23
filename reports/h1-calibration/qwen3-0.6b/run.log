@@ -1,0 +1,29 @@
+vramorama: lease 4cd2bb03 waits for 3,072 MiB on NVIDIA GeForce RTX 5080 Laptop GPU: 15,403 MiB free; confirming it stays free and stops growing for 15s
+vramorama: lease 4cd2bb03 admitted after 17s; starting .venv/Scripts/python.exe -u scripts/h1_calibration.py --model C:\Users\patri\.cache\huggingface\hub\models--Qwen--Qwen3-0.6B\snapshots\c1899de289a04d12100db370d81485cdf75e47ca --revision c1899de289a04d12100db370d81485cdf75e47ca --dtype bfloat16 --output-dir runs/h1-qwen3-0.6b
+vramorama: holding the machine awake with the screen on while the job runs (no setting changes; --no-keep-awake opts out)
+W1023 23:31:31.819000 6852 Lib\site-packages\torch\distributed\elastic\multiprocessing\redirects.py:29] NOTE: Redirects are currently not supported in Windows or MacOs.
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights:  11%|#1        | 35/311 [00:00<00:00, 345.41it/s]Loading weights:  23%|##2       | 70/311 [00:00<00:00, 305.03it/s]Loading weights:  32%|###2      | 101/311 [00:00<00:00, 230.77it/s]Loading weights:  41%|####1     | 129/311 [00:00<00:00, 242.24it/s]Loading weights:  50%|####9     | 155/311 [00:00<00:00, 243.02it/s]Loading weights:  58%|#####8    | 181/311 [00:00<00:00, 239.63it/s]Loading weights: 100%|##########| 311/311 [00:00<00:00, 383.48it/s]
+25/576 cases, 39s
+50/576 cases, 82s
+75/576 cases, 120s
+100/576 cases, 159s
+125/576 cases, 204s
+150/576 cases, 243s
+175/576 cases, 280s
+200/576 cases, 323s
+225/576 cases, 361s
+250/576 cases, 401s
+275/576 cases, 443s
+300/576 cases, 481s
+325/576 cases, 519s
+350/576 cases, 562s
+375/576 cases, 600s
+400/576 cases, 639s
+425/576 cases, 683s
+450/576 cases, 723s
+475/576 cases, 761s
+500/576 cases, 805s
+525/576 cases, 848s
+550/576 cases, 891s
+575/576 cases, 938s
+Done: 576 cases in 937.7s -> runs\h1-qwen3-0.6b

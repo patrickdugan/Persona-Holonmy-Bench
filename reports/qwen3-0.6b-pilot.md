@@ -89,6 +89,8 @@ Readout: margin is logit(theatrical) − logit(plain) over the fixed continuatio
 - First-token specificity is mean +0.51 with mixed sign (−0.40, +1.25, +0.67).
 - **Later-token specificity is exactly 0, by construction:** the patch hits block 27, the final decoder block, at the final prefix position. No later layer reads that position's block-27 residual, so only the first predicted token can change. The first-token/later-token split is uninformative for `last`-block patches. A later-token test needs a selected block below the top.
 
+**Readout caveat (found later, see `h1-calibration.md`):** Qwen3-0.6B is a hybrid thinking model, and the chat template ends at `<|im_start|>assistant\n`, where its natural next token is `<think>`. The first-token margins above therefore compare two continuations the model would not produce at that position. They are not an answer-style measurement.
+
 ## Reading
 
 The four training-selected block-27 SAE latents carry a small, seed-consistent share of the theatrical-vs-plain first-token preference on an unseen probe family. That share is slightly larger than what a norm-matched random direction removes. The effect is small, rests on 3 seeds at the p-value floor, uses an SAE with 0.60 validation FVU fitted on 256 scripted tokens, and comes from a forced-continuation proxy. It does not test whether percolation selection beats degree or random selection, because the comparators were identical. No free-generation or blinded check was run.

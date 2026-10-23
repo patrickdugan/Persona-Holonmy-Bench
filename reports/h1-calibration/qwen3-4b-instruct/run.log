@@ -1,0 +1,29 @@
+vramorama: lease 2ef0253c waits for 11,264 MiB on NVIDIA GeForce RTX 5080 Laptop GPU: 15,403 MiB free; confirming it stays free and stops growing for 15s
+vramorama: lease 2ef0253c admitted after 19s; starting .venv/Scripts/python.exe -u scripts/h1_calibration.py --model C:\Users\patri\.cache\huggingface\hub\models--Qwen--Qwen3-4B-Instruct-2507\snapshots\cdbee75f17c01a7cc42f958dc650907174af0554 --revision cdbee75f17c01a7cc42f958dc650907174af0554 --dtype bfloat16 --output-dir runs/h1-qwen3-4b-instruct
+vramorama: holding the machine awake with the screen on while the job runs (no setting changes; --no-keep-awake opts out)
+W1023 22:47:47.004000 24816 Lib\site-packages\torch\distributed\elastic\multiprocessing\redirects.py:29] NOTE: Redirects are currently not supported in Windows or MacOs.
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights:   3%|3         | 13/398 [00:00<00:03, 103.43it/s]Loading weights:   6%|6         | 24/398 [00:00<00:04, 78.21it/s] Loading weights:   8%|8         | 33/398 [00:00<00:09, 39.59it/s]Loading weights:  10%|#         | 40/398 [00:00<00:08, 41.32it/s]Loading weights:  13%|#3        | 53/398 [00:00<00:05, 59.16it/s]Loading weights:  15%|#5        | 61/398 [00:01<00:06, 52.42it/s]Loading weights:  17%|#7        | 68/398 [00:01<00:06, 50.33it/s]Loading weights:  19%|#9        | 76/398 [00:01<00:06, 46.98it/s]Loading weights:  21%|##        | 82/398 [00:01<00:07, 44.81it/s]Loading weights:  23%|##3       | 92/398 [00:01<00:05, 55.88it/s]Loading weights:  25%|##4       | 99/398 [00:01<00:05, 50.96it/s]Loading weights:  26%|##6       | 105/398 [00:02<00:06, 43.91it/s]Loading weights:  29%|##8       | 114/398 [00:02<00:06, 47.13it/s]Loading weights:  31%|###1      | 124/398 [00:02<00:04, 56.60it/s]Loading weights:  33%|###2      | 131/398 [00:02<00:05, 51.22it/s]Loading weights:  35%|###4      | 139/398 [00:02<00:05, 46.40it/s]Loading weights:  36%|###6      | 145/398 [00:02<00:05, 46.63it/s]Loading weights:  38%|###7      | 150/398 [00:03<00:05, 42.74it/s]Loading weights:  39%|###9      | 157/398 [00:03<00:05, 45.14it/s]Loading weights:  41%|####      | 162/398 [00:03<00:06, 36.09it/s]Loading weights:  42%|####1     | 166/398 [00:03<00:08, 26.82it/s]Loading weights:  43%|####2     | 171/398 [00:03<00:07, 30.16it/s]Loading weights:  44%|####3     | 175/398 [00:04<00:08, 25.43it/s]Loading weights:  46%|####5     | 183/398 [00:04<00:08, 25.43it/s]Loading weights:  47%|####6     | 187/398 [00:04<00:07, 27.20it/s]Loading weights:  49%|####9     | 197/398 [00:04<00:07, 26.83it/s]Loading weights:  53%|#####2    | 209/398 [00:05<00:05, 37.54it/s]Loading weights:  54%|#####3    | 214/398 [00:05<00:05, 32.09it/s]Loading weights:  55%|#####4    | 218/398 [00:05<00:07, 25.29it/s]Loading weights:  57%|#####6    | 226/398 [00:05<00:05, 33.17it/s]Loading weights:  58%|#####8    | 231/398 [00:06<00:06, 25.16it/s]Loading weights:  59%|#####9    | 235/398 [00:06<00:07, 21.65it/s]Loading weights:  62%|######1   | 245/398 [00:06<00:05, 30.36it/s]Loading weights:  63%|######2   | 249/398 [00:06<00:05, 29.07it/s]Loading weights:  64%|######4   | 256/398 [00:06<00:04, 33.42it/s]Loading weights:  65%|######5   | 260/398 [00:06<00:05, 27.50it/s]Loading weights:  67%|######6   | 265/398 [00:07<00:04, 27.76it/s]Loading weights:  68%|######7   | 269/398 [00:07<00:04, 29.23it/s]Loading weights:  69%|######8   | 273/398 [00:07<00:04, 26.74it/s]Loading weights:  69%|######9   | 276/398 [00:07<00:04, 25.70it/s]Loading weights:  72%|#######1  | 285/398 [00:07<00:03, 31.94it/s]Loading weights:  73%|#######3  | 292/398 [00:07<00:02, 37.73it/s]Loading weights:  75%|#######4  | 298/398 [00:08<00:02, 41.14it/s]Loading weights:  76%|#######6  | 303/398 [00:08<00:02, 31.87it/s]Loading weights:  77%|#######7  | 307/398 [00:08<00:03, 25.07it/s]Loading weights:  78%|#######8  | 312/398 [00:08<00:03, 27.14it/s]Loading weights:  79%|#######9  | 316/398 [00:08<00:03, 24.57it/s]Loading weights:  80%|########  | 320/398 [00:09<00:04, 17.82it/s]Loading weights:  82%|########1 | 325/398 [00:09<00:03, 21.86it/s]Loading weights:  82%|########2 | 328/398 [00:09<00:03, 17.60it/s]Loading weights:  83%|########3 | 331/398 [00:09<00:03, 17.74it/s]Loading weights:  84%|########3 | 334/398 [00:10<00:03, 16.70it/s]Loading weights: 100%|##########| 398/398 [00:10<00:00, 39.09it/s]
+25/576 cases, 43s
+50/576 cases, 87s
+75/576 cases, 126s
+100/576 cases, 165s
+125/576 cases, 206s
+150/576 cases, 244s
+175/576 cases, 285s
+200/576 cases, 329s
+225/576 cases, 368s
+250/576 cases, 408s
+275/576 cases, 452s
+300/576 cases, 489s
+325/576 cases, 526s
+350/576 cases, 570s
+375/576 cases, 608s
+400/576 cases, 719s
+425/576 cases, 1089s
+450/576 cases, 1435s
+475/576 cases, 1752s
+500/576 cases, 2125s
+525/576 cases, 2460s
+550/576 cases, 2516s
+575/576 cases, 2556s
+Done: 576 cases in 2556.6s -> runs\h1-qwen3-4b-instruct
