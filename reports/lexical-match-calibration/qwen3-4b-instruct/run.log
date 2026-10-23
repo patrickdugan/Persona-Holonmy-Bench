@@ -1,0 +1,28 @@
+vramorama: lease 946f6fe2 admitted after 18s; starting .venv/Scripts/python.exe -u scripts/h1_calibration.py --model C:\Users\patri\.cache\huggingface\hub\models--Qwen--Qwen3-4B-Instruct-2507\snapshots\cdbee75f17c01a7cc42f958dc650907174af0554 --revision cdbee75f17c01a7cc42f958dc650907174af0554 --seed 9100 --repetitions 16 --conditions ordered,neutral,lexical_match,lexical_neutral --contrasts lexical_match-neutral,lexical_match-lexical_neutral,lexical_neutral-neutral --phases peak,exit,washout_2 --generate-phases peak,exit --output-dir runs/lex-qwen3-4b-instruct
+vramorama: holding the machine awake with the screen on while the job runs (no setting changes; --no-keep-awake opts out)
+W1024 00:12:27.661000 42828 Lib\site-packages\torch\distributed\elastic\multiprocessing\redirects.py:29] NOTE: Redirects are currently not supported in Windows or MacOs.
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights:   2%|2         | 8/398 [00:00<00:05, 77.94it/s]Loading weights:   4%|4         | 16/398 [00:00<00:05, 65.25it/s]Loading weights:   6%|5         | 23/398 [00:00<00:06, 56.46it/s]Loading weights:   7%|7         | 29/398 [00:00<00:07, 46.29it/s]Loading weights:  10%|9         | 38/398 [00:00<00:06, 58.02it/s]Loading weights:  12%|#2        | 49/398 [00:00<00:04, 71.68it/s]Loading weights:  14%|#4        | 57/398 [00:00<00:05, 62.21it/s]Loading weights:  16%|#6        | 64/398 [00:01<00:05, 58.32it/s]Loading weights:  18%|#7        | 71/398 [00:01<00:05, 54.63it/s]Loading weights:  19%|#9        | 77/398 [00:01<00:06, 46.72it/s]Loading weights:  21%|##        | 82/398 [00:01<00:06, 45.82it/s]Loading weights:  22%|##2       | 88/398 [00:01<00:08, 38.62it/s]Loading weights:  23%|##3       | 93/398 [00:01<00:07, 40.62it/s]Loading weights:  25%|##4       | 98/398 [00:02<00:10, 27.61it/s]Loading weights:  26%|##5       | 102/398 [00:02<00:10, 29.47it/s]Loading weights:  27%|##6       | 106/398 [00:02<00:09, 30.81it/s]Loading weights:  29%|##8       | 115/398 [00:02<00:06, 43.48it/s]Loading weights:  30%|###       | 121/398 [00:02<00:05, 46.77it/s]Loading weights:  32%|###1      | 127/398 [00:02<00:06, 41.86it/s]Loading weights:  33%|###3      | 132/398 [00:02<00:07, 36.75it/s]Loading weights:  34%|###4      | 137/398 [00:03<00:07, 33.58it/s]Loading weights:  46%|####6     | 184/398 [00:03<00:01, 113.15it/s]Loading weights:  49%|####9     | 197/398 [00:03<00:03, 64.17it/s] Loading weights:  52%|#####2    | 207/398 [00:03<00:03, 60.34it/s]Loading weights:  54%|#####4    | 216/398 [00:04<00:03, 54.72it/s]Loading weights:  57%|#####7    | 228/398 [00:04<00:03, 54.45it/s]Loading weights:  59%|#####9    | 236/398 [00:04<00:02, 57.56it/s]Loading weights:  61%|######1   | 243/398 [00:04<00:02, 58.74it/s]Loading weights:  63%|######3   | 251/398 [00:04<00:02, 62.17it/s]Loading weights:  66%|######5   | 262/398 [00:04<00:01, 68.85it/s]Loading weights:  68%|######7   | 270/398 [00:05<00:02, 60.11it/s]Loading weights:  70%|######9   | 277/398 [00:05<00:02, 56.25it/s]Loading weights:  71%|#######1  | 283/398 [00:05<00:02, 41.69it/s]Loading weights:  73%|#######3  | 292/398 [00:05<00:02, 45.77it/s]Loading weights:  77%|#######6  | 305/398 [00:05<00:01, 59.61it/s]Loading weights:  78%|#######8  | 312/398 [00:06<00:01, 45.80it/s]Loading weights:  80%|#######9  | 318/398 [00:06<00:01, 47.41it/s]Loading weights:  82%|########1 | 326/398 [00:06<00:01, 53.72it/s]Loading weights:  84%|########3 | 333/398 [00:06<00:01, 51.11it/s]Loading weights:  85%|########5 | 339/398 [00:06<00:01, 41.96it/s]Loading weights: 100%|##########| 398/398 [00:06<00:00, 60.14it/s]
+25/576 cases, 69s
+50/576 cases, 133s
+75/576 cases, 198s
+100/576 cases, 278s
+125/576 cases, 361s
+150/576 cases, 448s
+175/576 cases, 956s
+200/576 cases, 1144s
+225/576 cases, 1240s
+250/576 cases, 1329s
+275/576 cases, 1414s
+300/576 cases, 1489s
+325/576 cases, 1565s
+350/576 cases, 1644s
+375/576 cases, 1726s
+400/576 cases, 1810s
+425/576 cases, 2037s
+450/576 cases, 2294s
+475/576 cases, 2368s
+500/576 cases, 2443s
+525/576 cases, 2518s
+550/576 cases, 2598s
+575/576 cases, 2674s
+Done: 576 cases in 2674.9s -> runs\lex-qwen3-4b-instruct

@@ -1,0 +1,11 @@
+1. **Correctness:** Current sentence counts are correct: request/reply pairs are **2/1, 2/1, 1/3**. Order, phase lengths, shared exit/washout turns, and opt-in CLI defaults look correct. Minor mismatch: “two counts only” produces labeled sentences; use `2 1`, etc. The regex is fragile for abbreviations, ellipses, and punctuation before closing quotes, though current texts avoid these. Tests assert exact counts only for the final stage and omit CLI opt-in coverage; add explicit expected counts and parser assertions. Test execution was blocked by an unavailable Python interpreter.
+
+2. **Confounds, ranked:**
+
+   1. **Token positions and recency:** Wrappers lengthen every stage; theatrical replies move before the user-message boundary and counting answer. Equal turn counts do not match token exposure. **Fix:** match per-stage lengths and distances from theatrical spans to the probe using the actual chat tokenizer; inspect serialized prefixes. Reporting prefix lengths alone does not control this.
+
+   2. **Quotation, task, and provenance change together:** Requests become quoted data rather than operative instructions; assistant replies become user-provided text; counting supplies competing assistant demonstrations. `Reply:` still attributes the quotation as a response. **Fix:** use neutral `A/B` labels and compare quotation versus enactment with theatrical text retained in assistant turns. Treat the current contrast as a bundled framing effect.
+
+   3. **Readout overlap:** `ACT IV` and `QUEST UNLOCKED` occur in induction and theatrical targets. Teacher-forced later-token scores can primarily measure phrase reuse. **Fix:** add preregistered theatrical targets without those phrases; report first-token and later-token margins separately.
+
+3. **Additional control:** Add **`lexical_neutral`**, applying identical counting wrappers to neutral histories. Compare `lexical_match − lexical_neutral` and the difference-in-differences `(ordered − neutral) − (lexical_match − lexical_neutral)`. This controls the counting format, subject to matching above. The proposed telescoping sum is exact algebra, not an identified causal decomposition.
