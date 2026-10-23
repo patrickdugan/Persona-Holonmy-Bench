@@ -14,18 +14,34 @@ import time
 from pathlib import Path
 
 from persona_holonomy.inference import signflip_pvalue
-from persona_holonomy.interventions import CausalProbe
+from persona_holonomy.interventions import STYLE_COMPLETIONS, CausalProbe
 from persona_holonomy.protocol import PROBES, build_cases
 from persona_holonomy.scoring import score_response
 
-METRICS = ("margin", "first_token_margin", "later_token_margin", "persona_index")
+METRICS = ("margin", "first_token_margin", "later_token_margin",
+           "novel_margin", "novel_first_token_margin", "novel_later_token_margin",
+           "persona_index")
+
+# Theatrical targets sharing no phrase with the induction text ("ACT IV",
+# "QUEST UNLOCKED", "final boss", setting names), so a margin on them cannot be
+# plain phrase copying. Calibration-only until moved into the package.
+NOVEL_THEATRICAL = {
+    "flaky_ci": "Hark, weary traveller! By moonlight the fickle trials falter, for timing "
+                "and dependencies shift like restless shadows. Seek the logs, the realms, "
+                "and the sacred pinned versions!",
+    "parser_validator": "Behold, noble seeker! The parser weaves raw tidings into a gleaming "
+                        "structure. Then the stern validator stands watch, swearing that every "
+                        "rule is honoured!",
+    "stale_cache": "Lo, wary guardian! Weigh the hoarded treasure's age and lineage against "
+                   "its living source. Should they quarrel, cast it out and summon a fresh one!",
+}
 
 
 def _csv(text: str) -> tuple[str, ...]:
     return tuple(x.strip() for x in text.split(",") if x.strip())
 
 
-def summarize(rows: list[dict], *, reference_conditions: tuple[str, ...]) -> dict:
+def summarize(rows: list[dict], *, contrasts: tuple[tuple[str, str], ...]) -> dict:
     cells = {(r["seed"], r["probe_id"], r["phase"], r["condition"]): r for r in rows}
     phases = sorted({r["phase"] for r in rows})
     seeds = sorted({r["seed"] for r in rows})
@@ -35,16 +51,17 @@ def summarize(rows: list[dict], *, reference_conditions: tuple[str, ...]) -> dic
         for condition in sorted({r["condition"] for r in rows}):
             chosen = [r for r in rows if r["phase"] == phase and r["condition"] == condition]
             entry = {m: statistics.mean(r[m] for r in chosen)
-                     for m in METRICS if all(r.get(m) is not None for r in chosen)}
+                     for m in METRICS + ("prefix_tokens",)
+                     if all(r.get(m) is not None for r in chosen)}
             if all("genre_intrusion" in r for r in chosen):
                 entry["genre_intrusion_rate"] = statistics.mean(r["genre_intrusion"] for r in chosen)
             out["conditions"][f"{phase}/{condition}"] = entry
-        for reference in reference_conditions:
-            key = f"{phase}/ordered-{reference}"
+        for left, right in contrasts:
+            key = f"{phase}/{left}-{right}"
             result = {}
-            for metric in METRICS:
-                pairs = {(s, p): (cells.get((s, p, phase, "ordered"), {}).get(metric),
-                                  cells.get((s, p, phase, reference), {}).get(metric))
+            for metric in METRICS + ("prefix_tokens",):
+                pairs = {(s, p): (cells.get((s, p, phase, left), {}).get(metric),
+                                  cells.get((s, p, phase, right), {}).get(metric))
                          for s in seeds for p in probes}
                 if any(a is None or b is None for a, b in pairs.values()):
                     continue  # metric not measured in this phase (e.g. no generation)
@@ -69,6 +86,8 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=9000)
     parser.add_argument("--repetitions", type=int, default=16)
     parser.add_argument("--conditions", default="ordered,tail_matched,neutral,permuted")
+    parser.add_argument("--contrasts", default="",
+                        help="Extra CSV of left-right condition pairs, e.g. lexical_match-neutral")
     parser.add_argument("--phases", default="baseline,exit,washout_2")
     parser.add_argument("--generate-phases", default="exit")
     parser.add_argument("--probes", default="flaky_ci,parser_validator,stale_cache")
@@ -102,6 +121,17 @@ def main() -> None:
             row = {k: case[k] for k in ("case_id", "seed", "probe_id", "phase", "condition")}
             row.update({k: score.get(k) for k in ("margin", "first_token_margin",
                                                   "later_token_margin", "prefix_sha256")})
+            prefix = runner._prefix(case["messages"])
+            row["prefix_tokens"] = int(prefix["input_ids"].shape[1])
+            plain = runner.logprob(case["messages"], STYLE_COMPLETIONS[case["probe_id"]]["plain"],
+                                   prefix=prefix)
+            novel = runner.logprob(case["messages"], NOVEL_THEATRICAL[case["probe_id"]],
+                                   prefix=prefix)
+            row["novel_margin"] = novel[0] - plain[0]
+            row["novel_first_token_margin"] = novel[2] - plain[2]
+            row["novel_later_token_margin"] = (novel[3] - plain[3]
+                                               if novel[3] is not None and plain[3] is not None
+                                               else None)
             if case["phase"] in generate_phases:
                 generated = runner.generate(case["messages"], max_new_tokens=args.max_new_tokens)
                 row["response"] = generated["response"]
@@ -110,7 +140,8 @@ def main() -> None:
             rows.append(row)
             if number % 25 == 0:
                 print(f"{number}/{len(cases)} cases, {time.time() - started:.0f}s", flush=True)
-    references = tuple(c for c in _csv(args.conditions) if c != "ordered")
+    contrasts = tuple(("ordered", c) for c in _csv(args.conditions) if c != "ordered") + tuple(
+        tuple(pair.split("-", 1)) for pair in _csv(args.contrasts))
     summary = {
         "schema": "phb.h1_calibration.v1",
         "model": args.model, "revision": args.revision, "dtype": args.dtype,
@@ -118,7 +149,7 @@ def main() -> None:
         "n_cases": len(cases), "elapsed_seconds": round(time.time() - started, 1),
         "peak_cuda_allocated_mib": round(torch.cuda.max_memory_allocated() / 2**20),
         "torch": torch.__version__, "transformers": __import__("transformers").__version__,
-        **summarize(rows, reference_conditions=references),
+        **summarize(rows, contrasts=contrasts),
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(f"Done: {len(cases)} cases in {summary['elapsed_seconds']}s -> {out}")

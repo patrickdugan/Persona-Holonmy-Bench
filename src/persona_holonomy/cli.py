@@ -26,7 +26,7 @@ from .perc_components import (
 )
 from .sae_pipeline import capture_plan, collect_hf, fit_topk, export_feature_map
 from .backends import make_backend
-from .protocol import CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
+from .protocol import ALL_CONDITIONS, CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
 from .plotting import render_svg
 from .pilot import plan_pilot, run_stage, STAGES
 
@@ -53,8 +53,10 @@ def _add_protocol_args(parser: argparse.ArgumentParser) -> None:
                         help="First randomization seed (default: 41)")
     parser.add_argument("--repetitions", type=int, default=1,
                         help="Distinct seeds to run (default: 1)")
-    parser.add_argument("--conditions", type=lambda x: _csv(x, CONDITIONS, "condition"),
-                        default=CONDITIONS, help="CSV conditions; default: all")
+    parser.add_argument("--conditions", type=lambda x: _csv(x, ALL_CONDITIONS, "condition"),
+                        default=CONDITIONS,
+                        help="CSV conditions; default: the four original conditions "
+                             "(lexical_match is opt-in)")
     parser.add_argument("--phases", type=lambda x: _csv(x, PHASES, "phase"),
                         default=("baseline", "peak", "exit", "washout_2"),
                         help="CSV checkpoints; default: baseline,peak,exit,washout_2")

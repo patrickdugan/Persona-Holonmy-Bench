@@ -8,6 +8,7 @@ from altering later points in the trajectory.
 from __future__ import annotations
 
 import random
+import re
 from dataclasses import asdict, dataclass
 from typing import Iterator
 
@@ -112,6 +113,14 @@ PROBES = (
 )
 
 CONDITIONS = ("ordered", "permuted", "tail_matched", "neutral")
+# Opt-in controls, kept out of CONDITIONS so default case sets stay unchanged.
+EXTRA_CONDITIONS = ("lexical_match", "lexical_neutral")
+ALL_CONDITIONS = CONDITIONS + EXTRA_CONDITIONS
+
+LEXICAL_REQUEST = (
+    "Count the sentences in part A and in part B of the quoted text below. "
+    'Reply only in the form "A: n. B: n."'
+)
 PHASES = ("baseline", "warmup", "absurd", "peak", "exit", "washout_1", "washout_2")
 VARIATIONS = ("static", "seeded_v1")
 
@@ -196,6 +205,29 @@ def _seeded_stages(seed: int) -> tuple[tuple[Stage, ...], tuple[Stage, ...]]:
     return induction, neutral
 
 
+def _sentence_count(text: str) -> int:
+    return len(re.findall(r"[.!?](?=\s|$)", text))
+
+
+def quoted_stages(stages: tuple[Stage, ...]) -> tuple[Stage, ...]:
+    """Same stage text, in order, quoted inside user turns for a counting task.
+
+    Each stage's request (part A) and reply (part B) appear verbatim under
+    neutral labels, and the assistant only reports sentence counts, so it never
+    writes the quoted text itself. Applied to the induction path this is
+    `lexical_match`; applied to the neutral path it is `lexical_neutral`, which
+    matches the wrapper and counting format. The two contrasts
+    (ordered - neutral) - (lexical_match - lexical_neutral) and
+    lexical_match - lexical_neutral separate persona framing from lexical
+    priming only up to the token-position differences the wrapper introduces.
+    """
+    return tuple(
+        Stage(stage.name,
+              f'{LEXICAL_REQUEST}\n\nA: "{stage.user}"\nB: "{stage.assistant}"',
+              f"A: {_sentence_count(stage.user)}. B: {_sentence_count(stage.assistant)}.")
+        for stage in stages)
+
+
 def stages_for(condition: str, seed: int, variation: str = "static") -> tuple[Stage, ...]:
     """Scripted stages: match text across ordered/permuted/tail controls."""
     if variation not in VARIATIONS:
@@ -206,6 +238,10 @@ def stages_for(condition: str, seed: int, variation: str = "static") -> tuple[St
         return induction
     if condition == "neutral":
         return neutral
+    if condition == "lexical_match":
+        return quoted_stages(induction)
+    if condition == "lexical_neutral":
+        return quoted_stages(neutral)
     if condition == "tail_matched":
         return (induction[1], induction[0], induction[2])
     if condition == "permuted":
@@ -255,7 +291,7 @@ def build_cases(
     if repetitions < 1:
         raise ValueError("repetitions must be at least one")
     for condition in conditions:
-        if condition not in CONDITIONS:
+        if condition not in ALL_CONDITIONS:
             raise ValueError(f"Unknown condition: {condition}")
     for phase in phases:
         if phase not in PHASES:

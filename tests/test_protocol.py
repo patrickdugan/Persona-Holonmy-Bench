@@ -3,7 +3,7 @@ from collections import Counter
 import pytest
 
 from persona_holonomy.protocol import (
-    CONDITIONS, INDUCTION, PHASE_LENGTHS, PROBES,
+    ALL_CONDITIONS, CONDITIONS, INDUCTION, LEXICAL_REQUEST, PHASE_LENGTHS, PROBES,
     build_cases, history_stages, messages_for, stages_for,
 )
 
@@ -41,8 +41,44 @@ def test_tail_matched_keeps_final_induction_stage_and_position():
             "tail_matched", "exit", seed)[-1]
 
 
+EXPECTED_COUNTS = {
+    ("lexical_match", "static"): ["A: 2. B: 1.", "A: 2. B: 1.", "A: 1. B: 3."],
+    ("lexical_match", "seeded_v1"): ["A: 2. B: 1.", "A: 2. B: 1.", "A: 1. B: 3."],
+    ("lexical_neutral", "static"): ["A: 2. B: 1.", "A: 1. B: 1.", "A: 1. B: 1."],
+    ("lexical_neutral", "seeded_v1"): ["A: 3. B: 2.", "A: 2. B: 2.", "A: 2. B: 2."],
+}
+
+
+def test_quoted_controls_hold_source_text_verbatim_and_only_count():
+    for (condition, variation), counts in EXPECTED_COUNTS.items():
+        source_condition = "ordered" if condition == "lexical_match" else "neutral"
+        for seed in (41, 9100, 9115):
+            source = stages_for(source_condition, seed, variation)
+            quoted = stages_for(condition, seed, variation)
+            assert [s.name for s in quoted] == [s.name for s in source]
+            assert [s.assistant for s in quoted] == counts
+            for original, stage in zip(source, quoted):
+                assert stage.user == (f'{LEXICAL_REQUEST}\n\nA: "{original.user}"\n'
+                                      f'B: "{original.assistant}"')
+                assert original.assistant not in stage.assistant
+            assert history_stages(condition, "exit", seed, variation)[-1] == \
+                history_stages("ordered", "exit", seed, variation)[-1]
+
+
+def test_default_conditions_exclude_opt_in_controls():
+    from persona_holonomy.cli import make_parser
+    assert ALL_CONDITIONS == CONDITIONS + ("lexical_match", "lexical_neutral")
+    cases = list(build_cases(conditions=("lexical_match", "lexical_neutral"),
+                             phases=("exit",)))
+    assert {c.condition for c in cases} == {"lexical_match", "lexical_neutral"}
+    parser = make_parser()
+    assert parser.parse_args(["generate"]).conditions == CONDITIONS
+    assert parser.parse_args(["generate", "--conditions", "ordered,lexical_neutral"]
+                             ).conditions == ("ordered", "lexical_neutral")
+
+
 def test_phases_extend_by_one_scripted_pair():
-    for condition in CONDITIONS:
+    for condition in ALL_CONDITIONS:
         for phase, length in PHASE_LENGTHS.items():
             assert len(history_stages(condition, phase, 7)) == length
             assert len(messages_for(condition, phase, 7, "test")) == 2 + 2 * length
