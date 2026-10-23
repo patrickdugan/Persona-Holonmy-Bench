@@ -1,0 +1,3 @@
+# Pilot artifacts are hash-pinned; keep their exact bytes (Windows runs write CRLF).
+reports/**/*.json -text
+reports/**/*.jsonl -text
