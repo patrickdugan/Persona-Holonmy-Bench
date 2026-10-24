@@ -296,6 +296,21 @@ def command_freegen(args: argparse.Namespace) -> None:
     print(f"Wrote {count} free-generated validation responses to {args.output}")
 
 
+def command_sample_rates(args: argparse.Namespace) -> None:
+    from .sampling import sample_rates_hf
+
+    count = sample_rates_hf(
+        input_path=args.input, output_path=args.output, model_name=args.model,
+        n_samples=args.n_samples, temperature=args.temperature, top_p=args.top_p,
+        max_new_tokens=args.max_new_tokens, seed=args.seed,
+        conditions=args.conditions, phases=args.phases,
+        device=args.device, dtype=args.dtype, max_total_tokens=args.max_total_tokens,
+        allow_download=args.allow_download, trust_remote_code=args.trust_remote_code,
+        chat_template_kwargs={"enable_thinking": False} if args.no_thinking else None,
+    )
+    print(f"Wrote {count} sampled-decoding rate rows to {args.output}")
+
+
 def command_blind_export(args: argparse.Namespace) -> None:
     csv_path, key_path = write_blind_export(args.input, args.output_prefix, seed=args.blind_seed)
     print(f"Rater sheet: {csv_path}; keep mapping PRIVATE: {key_path}")
@@ -614,6 +629,26 @@ def make_parser() -> argparse.ArgumentParser:
     freegen.add_argument("--allow-download", action="store_true")
     freegen.add_argument("--trust-remote-code", action="store_true")
     freegen.set_defaults(func=command_freegen)
+
+    sampling = sub.add_parser("sample-rates", help="Sample continuations and measure behavioral rates (Q5)")
+    sampling.add_argument("--model", required=True, help="Locally cached HF causal chat checkpoint")
+    sampling.add_argument("--input", required=True, help="Case JSONL")
+    sampling.add_argument("--output", default="runs/sample-rates.jsonl")
+    sampling.add_argument("--n-samples", type=int, default=20)
+    sampling.add_argument("--temperature", type=float, default=1.0)
+    sampling.add_argument("--top-p", type=float, default=1.0)
+    sampling.add_argument("--max-new-tokens", type=int, default=64)
+    sampling.add_argument("--seed", type=int, default=20261025)
+    sampling.add_argument("--conditions", type=lambda x: _csv(x, ALL_CONDITIONS, "condition"))
+    sampling.add_argument("--phases", type=lambda x: _csv(x, PHASES, "phase"))
+    sampling.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
+    sampling.add_argument("--dtype", choices=("auto", "float32", "float16", "bfloat16"), default="auto")
+    sampling.add_argument("--max-total-tokens", type=int, default=4096)
+    sampling.add_argument("--allow-download", action="store_true")
+    sampling.add_argument("--trust-remote-code", action="store_true")
+    sampling.add_argument("--no-thinking", action="store_true",
+                          help="Render the chat template with enable_thinking=False")
+    sampling.set_defaults(func=command_sample_rates)
 
     blind = sub.add_parser("blind-export", help="Shuffle free generations for masked manual ratings")
     blind.add_argument("--input", required=True, help="JSONL from phb freegen")
