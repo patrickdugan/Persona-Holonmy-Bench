@@ -182,3 +182,17 @@ def test_pilot_cli_forwards_no_thinking(monkeypatch, no_thinking):
     assert cli.make_parser().parse_args(argv).no_thinking is no_thinking
     cli.main(argv)
     assert calls[0]["no_thinking"] is no_thinking
+
+
+def test_generate_accepts_genres_system_variants_and_extra_probes(tmp_path):
+    output = tmp_path / "cases.jsonl"
+    main(["generate", "--variation", "seeded_v1", "--repetitions", "1", "--seed", "9200",
+          "--genres", "pirate,noir", "--system-variants", "default,plain",
+          "--conditions", "ordered,lexical_match", "--phases", "exit",
+          "--probes", "retry_backoff", "--output", str(output)])
+    rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 2 * 2 * 2
+    assert {r["genre"] for r in rows} == {"pirate", "noir"}
+    assert {r["system_variant"] for r in rows} == {"default", "plain"}
+    assert all(r["probe_id"] == "retry_backoff" for r in rows)
+    assert any(r["case_id"].endswith(".g-noir.sysplain.v1") for r in rows)

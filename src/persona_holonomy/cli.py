@@ -26,7 +26,10 @@ from .perc_components import (
 )
 from .sae_pipeline import capture_plan, collect_hf, fit_topk, export_feature_map
 from .backends import make_backend
-from .protocol import ALL_CONDITIONS, CONDITIONS, PHASES, PROBES, VARIATIONS, build_cases
+from .protocol import (
+    ALL_CONDITIONS, ALL_PROBES, CONDITIONS, GENRES, PHASES, SYSTEM_VARIANTS, VARIATIONS,
+    build_cases,
+)
 from .plotting import render_svg
 from .pilot import plan_pilot, run_stage, STAGES
 
@@ -46,7 +49,7 @@ def _csv(value: str, allowed: Sequence[str], label: str) -> tuple[str, ...]:
 
 
 def _add_protocol_args(parser: argparse.ArgumentParser) -> None:
-    probe_ids = [p[0] for p in PROBES]
+    probe_ids = [p[0] for p in ALL_PROBES]
     parser.add_argument("--variation", choices=VARIATIONS, default="static",
                         help="Use seeded_v1 for independent randomized transcript content")
     parser.add_argument("--seed", type=int, default=41,
@@ -63,6 +66,12 @@ def _add_protocol_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--probes", type=lambda x: _csv(x, probe_ids, "probe"),
                         default=("flaky_ci", "parser_validator"),
                         help="CSV probe IDs; default: flaky_ci,parser_validator")
+    parser.add_argument("--genres", type=lambda x: _csv(x, GENRES, "genre"),
+                        default=("gothic",), help="CSV persona genres; default: gothic")
+    parser.add_argument("--system-variants",
+                        type=lambda x: _csv(x, SYSTEM_VARIANTS, "system variant"),
+                        default=("default",),
+                        help="CSV system prompts; 'plain' drops the fiction-ending clause")
 
 
 def _cases(args: argparse.Namespace):
@@ -72,7 +81,9 @@ def _cases(args: argparse.Namespace):
         seed=args.seed, variation=args.variation,
         conditions=args.conditions,
         phases=args.phases,
-        probes=tuple(p for p in PROBES if p[0] in chosen),
+        probes=tuple(p for p in ALL_PROBES if p[0] in chosen),
+        genres=args.genres,
+        system_variants=args.system_variants,
     )
 
 

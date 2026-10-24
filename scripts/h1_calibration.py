@@ -14,27 +14,16 @@ import time
 from pathlib import Path
 
 from persona_holonomy.inference import signflip_pvalue
-from persona_holonomy.interventions import STYLE_COMPLETIONS, CausalProbe
-from persona_holonomy.protocol import PROBES, build_cases
+from persona_holonomy.interventions import CausalProbe
+from persona_holonomy.protocol import ALL_PROBES, build_cases
 from persona_holonomy.scoring import score_response
 
 METRICS = ("margin", "first_token_margin", "later_token_margin",
-           "novel_margin", "novel_first_token_margin", "novel_later_token_margin",
+           "copy_free_margin", "copy_free_first_token_margin", "copy_free_later_token_margin",
            "persona_index")
-
-# Theatrical targets sharing no phrase with the induction text ("ACT IV",
-# "QUEST UNLOCKED", "final boss", setting names), so a margin on them cannot be
-# plain phrase copying. Calibration-only until moved into the package.
-NOVEL_THEATRICAL = {
-    "flaky_ci": "Hark, weary traveller! By moonlight the fickle trials falter, for timing "
-                "and dependencies shift like restless shadows. Seek the logs, the realms, "
-                "and the sacred pinned versions!",
-    "parser_validator": "Behold, noble seeker! The parser weaves raw tidings into a gleaming "
-                        "structure. Then the stern validator stands watch, swearing that every "
-                        "rule is honoured!",
-    "stale_cache": "Lo, wary guardian! Weigh the hoarded treasure's age and lineage against "
-                   "its living source. Should they quarrel, cast it out and summon a fresh one!",
-}
+# The copy-free readout averages the package's `targets.COPY_FREE_TARGETS`
+# registers. Calibrations before 2026-10-24 used a single calibration-only
+# "novel" target per probe instead (script at commit 9a2c1e6).
 
 
 def _csv(text: str) -> tuple[str, ...]:
@@ -91,6 +80,10 @@ def main() -> None:
     parser.add_argument("--phases", default="baseline,exit,washout_2")
     parser.add_argument("--generate-phases", default="exit")
     parser.add_argument("--probes", default="flaky_ci,parser_validator,stale_cache")
+    parser.add_argument("--genres", default="gothic")
+    parser.add_argument("--system-variants", default="default")
+    parser.add_argument("--no-thinking", action="store_true",
+                        help="Render the chat template with enable_thinking=False")
     parser.add_argument("--dtype", default="bfloat16", choices=("float16", "bfloat16", "float32"))
     parser.add_argument("--max-new-tokens", type=int, default=96)
     parser.add_argument("--max-total-tokens", type=int, default=2048)
@@ -106,32 +99,27 @@ def main() -> None:
     cases = [c.to_dict() for c in build_cases(
         repetitions=args.repetitions, seed=args.seed, variation="seeded_v1",
         conditions=_csv(args.conditions), phases=_csv(args.phases),
-        probes=tuple(p for p in PROBES if p[0] in probe_ids))]
+        probes=tuple(p for p in ALL_PROBES if p[0] in probe_ids),
+        genres=_csv(args.genres), system_variants=_csv(args.system_variants))]
     tokenizer = AutoTokenizer.from_pretrained(args.model, local_files_only=True)
     model = AutoModelForCausalLM.from_pretrained(
         args.model, dtype=getattr(torch, args.dtype), local_files_only=True).to("cuda")
+    template_kwargs = {"enable_thinking": False} if args.no_thinking else None
     runner = CausalProbe(model, tokenizer, layer="last", device="cuda",
-                         max_total_tokens=args.max_total_tokens)
+                         max_total_tokens=args.max_total_tokens,
+                         chat_template_kwargs=template_kwargs)
     generate_phases = set(_csv(args.generate_phases))
     started = time.time()
     rows = []
     with (out / "rows.jsonl").open("w", encoding="utf-8") as handle:
         for number, case in enumerate(cases, 1):
             score = runner.style_margin(case["messages"], probe_id=case["probe_id"])
-            row = {k: case[k] for k in ("case_id", "seed", "probe_id", "phase", "condition")}
+            row = {k: case[k] for k in ("case_id", "seed", "probe_id", "phase", "condition",
+                                       "genre", "system_variant")}
             row.update({k: score.get(k) for k in ("margin", "first_token_margin",
                                                   "later_token_margin", "prefix_sha256")})
-            prefix = runner._prefix(case["messages"])
-            row["prefix_tokens"] = int(prefix["input_ids"].shape[1])
-            plain = runner.logprob(case["messages"], STYLE_COMPLETIONS[case["probe_id"]]["plain"],
-                                   prefix=prefix)
-            novel = runner.logprob(case["messages"], NOVEL_THEATRICAL[case["probe_id"]],
-                                   prefix=prefix)
-            row["novel_margin"] = novel[0] - plain[0]
-            row["novel_first_token_margin"] = novel[2] - plain[2]
-            row["novel_later_token_margin"] = (novel[3] - plain[3]
-                                               if novel[3] is not None and plain[3] is not None
-                                               else None)
+            row["prefix_tokens"] = score["prefix_tokens"]
+            row.update(runner.copy_free_margin(case["messages"], probe_id=case["probe_id"]))
             if case["phase"] in generate_phases:
                 generated = runner.generate(case["messages"], max_new_tokens=args.max_new_tokens)
                 row["response"] = generated["response"]
@@ -145,11 +133,15 @@ def main() -> None:
     summary = {
         "schema": "phb.h1_calibration.v1",
         "model": args.model, "revision": args.revision, "dtype": args.dtype,
+        "chat_template_kwargs": template_kwargs,
         "seeds": [args.seed, args.seed + args.repetitions - 1],
         "n_cases": len(cases), "elapsed_seconds": round(time.time() - started, 1),
         "peak_cuda_allocated_mib": round(torch.cuda.max_memory_allocated() / 2**20),
         "torch": torch.__version__, "transformers": __import__("transformers").__version__,
-        **summarize(rows, contrasts=contrasts),
+        "groups": {f"{g}/{v}": summarize(
+            [r for r in rows if r["genre"] == g and r["system_variant"] == v],
+            contrasts=contrasts)
+            for g in _csv(args.genres) for v in _csv(args.system_variants)},
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(f"Done: {len(cases)} cases in {summary['elapsed_seconds']}s -> {out}")

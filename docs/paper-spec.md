@@ -66,6 +66,15 @@ Every estimand is a seed-clustered paired contrast in the **copy-free** margin: 
 
 ## Work order
 
+**Code-step status (2026-10-24):**
+- **Done:** `--no-thinking` / `chat_template_kwargs` through every HF entry point; the `system_plain` variant (`--system-variants`); `pirate` and `noir` genres (`--genres`); 6 extra probe families (`ALL_PROBES`); `targets.COPY_FREE_TARGETS` (9 probes × 4 registers) with `audit_copy_free()`; `CausalProbe.copy_free_margin`. The calibration script takes `--genres`, `--system-variants` and `--no-thinking`.
+- **Smoke check:** Qwen3-0.6B with `--no-thinking`, 96 cases; no answer starts with `<think>`.
+- **Still open:**
+  - sampled-decoding intrusion rates;
+  - multi-null averaging;
+  - a decomposition report command;
+  - copyable (phrase-sharing) targets for pirate and noir, which Q3's copying share needs per genre. `STYLE_COMPLETIONS` theatrical targets are gothic-style only.
+
 1. **Code** (delegable to Codex with review):
    - template kwargs (`enable_thinking=False`);
    - a `system_plain` system-prompt variant;

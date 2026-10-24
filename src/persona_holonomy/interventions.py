@@ -419,6 +419,41 @@ class CausalProbe:
             ).hexdigest(),
         }
 
+    def copy_free_margin(self, messages: list[dict[str, str]], *, probe_id: str,
+                         registers: tuple[str, ...] | None = None, vector=None,
+                         mode="transplant", alpha=1.0, reference=None) -> dict[str, Any]:
+        """Theatrical-minus-plain margin on targets sharing no phrase with any history.
+
+        Averages the per-register margins (see `targets.COPY_FREE_TARGETS`), so it
+        cannot be driven by copying phrases from the conversation.
+        """
+        from .targets import COPY_FREE_TARGETS, REGISTERS
+        prefix = self._prefix(messages)
+        plain, _, plain_first, plain_tail = self.logprob(
+            messages, STYLE_COMPLETIONS[probe_id]["plain"], vector=vector, mode=mode,
+            alpha=alpha, prefix=prefix, reference=reference)
+        by_register = {}
+        for register in registers or REGISTERS:
+            mean, n, first, tail = self.logprob(
+                messages, COPY_FREE_TARGETS[probe_id][register], vector=vector,
+                mode=mode, alpha=alpha, prefix=prefix, reference=reference)
+            by_register[register] = {
+                "margin": mean - plain,
+                "first_token_margin": first - plain_first,
+                "later_token_margin": (tail - plain_tail
+                                       if tail is not None and plain_tail is not None else None),
+                "tokens": n,
+            }
+        later = [v["later_token_margin"] for v in by_register.values()]
+        return {
+            "copy_free_margin": statistics.mean(v["margin"] for v in by_register.values()),
+            "copy_free_first_token_margin": statistics.mean(
+                v["first_token_margin"] for v in by_register.values()),
+            "copy_free_later_token_margin": (statistics.mean(later)
+                                             if None not in later else None),
+            "copy_free_by_register": by_register,
+        }
+
 
 def _orthogonal_random(direction: Any, *, seed: int, torch: Any):
     generator = torch.Generator(device="cpu").manual_seed(seed)

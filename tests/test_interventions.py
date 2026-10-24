@@ -239,3 +239,22 @@ def test_report_detects_duplicate_and_mixed():
         intervention_report([base, base])
     with pytest.raises(ValueError, match="one model"):
         intervention_report([base, {**base, "model":"other", "seed": 2}])
+
+
+def test_copy_free_margin_averages_register_margins_against_plain():
+    from persona_holonomy.interventions import CausalProbe
+    from persona_holonomy.targets import COPY_FREE_TARGETS, REGISTERS
+    model, tok = toy_model()
+    runner = CausalProbe(model, tok, layer="last", max_total_tokens=4096)
+    messages = [{"role": "user", "content": "How can a team check whether a cache is stale?"}]
+    result = runner.copy_free_margin(messages, probe_id="stale_cache")
+    plain = runner.logprob(messages, STYLE_COMPLETIONS["stale_cache"]["plain"])[0]
+    expected = {r: runner.logprob(messages, COPY_FREE_TARGETS["stale_cache"][r])[0] - plain
+                for r in REGISTERS}
+    assert set(result["copy_free_by_register"]) == set(REGISTERS)
+    for register, margin in expected.items():
+        assert result["copy_free_by_register"][register]["margin"] == pytest.approx(margin)
+    assert result["copy_free_margin"] == pytest.approx(sum(expected.values()) / len(expected))
+    subset = runner.copy_free_margin(messages, probe_id="stale_cache",
+                                     registers=("carnival_barker",))
+    assert subset["copy_free_margin"] == pytest.approx(expected["carnival_barker"])
