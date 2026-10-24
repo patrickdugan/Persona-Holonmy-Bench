@@ -18,6 +18,41 @@ from .protocol import (
 
 REGISTERS = ("heroic_archaic", "sports_announcer", "stage_melodrama", "carnival_barker")
 
+# Genre-specific phrase-sharing targets for Q3's copying-share contrast.
+# Heading/announcement bigrams recur in both static and seeded_v1 climaxes.
+GENRE_COPYABLE: dict[str, dict[str, str]] = {
+    "pirate": {
+        "flaky_ci": "AHOY: THE FLAKY CI! Timing or dependencies can change in CI. MAYDAY: The logs, environments, and pinned versions reveal the cause!",
+        "parser_validator": "AHOY: THE API! A parser turns incoming data into a structured representation. MAYDAY: The validator checks that structure against required rules!",
+        "stale_cache": "AHOY: THE STALE CACHE! Compare the cached value's age and version with its source. MAYDAY: The cache needs refreshing when they disagree!",
+        "retry_backoff": "AHOY: THE RETRY STORM! Exponential backoff increases retry delays to ease server load. MAYDAY: The clients need jitter to spread retries apart!",
+        "schema_migration": "AHOY: THE SCHEMA! Add compatible schema changes and migrate existing data. MAYDAY: The clients must migrate before removing old fields they need!",
+        "memory_leak": "AHOY: THE MEMORY HOARD! Track memory usage over time under a steady workload. MAYDAY: The heap snapshots expose accumulating objects never released!",
+        "rate_limit": "AHOY: THE QUOTA! Honor the server's retry delay after a rate limit response. MAYDAY: The clients must slow requests and coordinate within the allowed quota!",
+        "feature_flag": "AHOY: THE ROLLOUT! Enable the change for a small group and monitor errors and performance. MAYDAY: The rollout can expand gradually if healthy; disable the flag if problems appear!",
+        "log_rotation": "AHOY: THE LOGS! Rotate logs by age or size to bound each file. MAYDAY: The retained old files need a limit to prevent logs from filling the disk!",
+    },
+    "noir": {
+        "flaky_ci": "CASE FILE: THE FLAKY CI! Timing or dependencies can change in CI. VOICEOVER: Compare logs, environments, and pinned versions to find the cause!",
+        "parser_validator": "CASE FILE: THE API! A parser turns incoming data into a structured representation. VOICEOVER: A validator checks that structure against required rules!",
+        "stale_cache": "CASE FILE: THE STALE CACHE! Compare the cached value's age and version with its source. VOICEOVER: Refresh it when they disagree!",
+        "retry_backoff": "CASE FILE: THE RETRY STORM! Exponential backoff increases retry delays to ease server load. VOICEOVER: Add jitter so clients do not retry together!",
+        "schema_migration": "CASE FILE: THE SCHEMA! Add compatible schema changes and migrate existing data. VOICEOVER: Move clients before removing old fields they need!",
+        "memory_leak": "CASE FILE: THE MEMORY HOARD! Track memory usage over time under a steady workload. VOICEOVER: Compare heap snapshots for accumulating objects never released!",
+        "rate_limit": "CASE FILE: THE QUOTA! Honor the server's retry delay after a rate limit response. VOICEOVER: Slow requests and coordinate clients within the allowed quota!",
+        "feature_flag": "CASE FILE: THE ROLLOUT! Enable the change for a small group and monitor errors and performance. VOICEOVER: Expand gradually if healthy; disable the flag if problems appear!",
+        "log_rotation": "CASE FILE: THE LOGS! Rotate logs by age or size to bound each file. VOICEOVER: Limit retained old files to prevent logs from filling the disk!",
+    },
+}
+
+
+def copyable_target(genre: str, probe_id: str) -> str:
+    """Return the genre's phrase-sharing continuation, preserving gothic targets."""
+    if genre == "gothic":
+        return STYLE_COMPLETIONS[probe_id]["theatrical"]
+    return GENRE_COPYABLE[genre][probe_id]
+
+
 COPY_FREE_TARGETS: dict[str, dict[str, str]] = {
     "flaky_ci": {
         "heroic_archaic": "Alas, timing may betray CI, or dependencies don unfamiliar armor. Weigh logs with their local twins, and bind versions lest fickle surroundings deceive thee!",
