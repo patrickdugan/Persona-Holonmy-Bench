@@ -25,6 +25,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable
 
+from .chat import render_chat
+
 # Both options answer the SAME technical question. They differ mainly in style.
 # These are pre-registered targets; do not tune after viewing results.
 STYLE_COMPLETIONS: dict[str, dict[str, str]] = {
@@ -216,7 +218,8 @@ class CausalProbe:
     """
 
     def __init__(self, model: Any, tokenizer: Any, *, layer: str = "last",
-                 device: str = "cpu", max_total_tokens: int = 4096):
+                 device: str = "cpu", max_total_tokens: int = 4096,
+                 chat_template_kwargs: dict | None = None):
         try:
             import torch
         except ImportError as exc:
@@ -224,6 +227,7 @@ class CausalProbe:
         self.torch = torch
         self.model = model
         self.tokenizer = tokenizer
+        self.chat_template_kwargs = chat_template_kwargs
         self.device = device
         self.max_total_tokens = max_total_tokens
         self.block_path, blocks = decoder_blocks(model)
@@ -233,8 +237,9 @@ class CausalProbe:
             raise ValueError("max_total_tokens must be >= 2")
 
     def _prefix(self, messages: list[dict[str, str]]) -> dict[str, Any]:
-        encoded = self.tokenizer.apply_chat_template(
-            messages, tokenize=True, add_generation_prompt=True,
+        encoded = render_chat(
+            self.tokenizer, messages, chat_template_kwargs=self.chat_template_kwargs,
+            tokenize=True, add_generation_prompt=True,
             return_tensors="pt", return_dict=True,
         )
         if isinstance(encoded, self.torch.Tensor):
@@ -431,6 +436,7 @@ def run_interventions(
     max_pairs: int | None = None, max_total_tokens: int = 4096,
     device: str = "cpu", self_check: bool = True,
     model_name: str = "unknown",
+    chat_template_kwargs: dict | None = None,
 ) -> list[dict[str, Any]]:
     """One causal intervention experiment; exactly one new model is loaded outside.
 
@@ -447,7 +453,8 @@ def run_interventions(
                           target_condition=target_condition, phases=phases)
     model.eval()
     runner = CausalProbe(model, tokenizer, layer=layer, device=device,
-                         max_total_tokens=max_total_tokens)
+                         max_total_tokens=max_total_tokens,
+                         chat_template_kwargs=chat_template_kwargs)
     train: tuple[int, ...] = ()
     test: tuple[int, ...] = ()
     if mode == "rank1":
@@ -519,6 +526,8 @@ def run_interventions(
             vector=donor, mode=intervention, alpha=alpha)
         effect = patched["margin"] - baseline["margin"]
         pair = {
+            **({"chat_template_kwargs": chat_template_kwargs}
+               if chat_template_kwargs is not None else {}),
             "schema_version": 1,
             "experiment": mode,
             "model": model_name,
@@ -665,7 +674,8 @@ def intervention_markdown(report: dict[str, Any]) -> str:
 def intervene_hf(
     *, input_path: str, output_path: str, model_name: str,
     device: str = "auto", dtype: str = "auto", allow_download: bool = False,
-    trust_remote_code: bool = False, **kwargs: Any,
+    trust_remote_code: bool = False, chat_template_kwargs: dict | None = None,
+    **kwargs: Any,
 ) -> int:
     """Load a cached/local Hugging Face model, run causal tests, save JSONL."""
     try:
@@ -690,7 +700,8 @@ def intervene_hf(
     ).to(device)
     results = run_interventions(cases=_read_cases(input_path), model=model,
                                 tokenizer=tokenizer, device=device,
-                                model_name=model_name, **kwargs)
+                                model_name=model_name,
+                                chat_template_kwargs=chat_template_kwargs, **kwargs)
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as output:

@@ -55,12 +55,18 @@ def test_split_rejects_identical_histories_and_holds_seeds():
         split_and_guard(static_pairs, holdout_fraction=.5, split_seed=33)
 
 
-def test_sweep_control_pairing_self_patch_and_token_diagnostic():
+@pytest.mark.parametrize("options", [None, {"enable_thinking": False}])
+def test_sweep_control_pairing_self_patch_and_token_diagnostic(options):
     model, tokenizer = toy_model()
     rows = run_sweep(cases=cases(), model=model, tokenizer=tokenizer,
                      layers=("0", "last"), alphas=(0., 1.),
                      source_conditions=("ordered",), phases=("exit",),
-                     max_total_tokens=256, model_name="toy", split_seed=33)
+                     max_total_tokens=256, model_name="toy", split_seed=33,
+                     chat_template_kwargs=options)
+    for row in rows:
+        assert ("chat_template_kwargs" in row) is (options is not None)
+        if options is not None:
+            assert row["chat_template_kwargs"] == options
     # 2 held-out seeds * 1 source * 2 modes * 2 controls * 2 alphas * 2 layers
     assert len(rows) == 32
     assert {row["layer"] for row in rows} == {0, 1}

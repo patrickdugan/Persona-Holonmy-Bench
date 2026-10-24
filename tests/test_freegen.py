@@ -68,10 +68,16 @@ def test_generate_prefill_only_hook_and_unmodified_suffix():
         runner.generate(case["messages"], max_new_tokens=0)
 
 
-def test_freegen_trials_are_paired_and_seed_disjoint():
+@pytest.mark.parametrize("options", [None, {"enable_thinking": False}])
+def test_freegen_trials_are_paired_and_seed_disjoint(options):
     model, tok = generation_toy()
     rows = run_freegen(cases=probe_cases(), model=model, tokenizer=tok,
-                       layer="0", max_new_tokens=2, max_total_tokens=256)
+                       layer="0", max_new_tokens=2, max_total_tokens=256,
+                       chat_template_kwargs=options)
+    for row in rows:
+        assert ("chat_template_kwargs" in row) is (options is not None)
+        if options is not None:
+            assert row["chat_template_kwargs"] == options
     assert len(rows) > 0 and len(rows) % 3 == 0
     assert {r["control"] for r in rows} == {"baseline", "candidate", "orthogonal"}
     assert {r["probe_id"] for r in rows} == {"parser_validator"}

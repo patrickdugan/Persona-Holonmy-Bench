@@ -36,6 +36,7 @@ def run_freegen(
     heldout_probe_ids: tuple[str, ...] = ("parser_validator",),
     max_new_tokens: int = 64, max_total_tokens: int = 4096,
     device: str = "cpu", model_name: str = "unknown",
+    chat_template_kwargs: dict | None = None,
 ) -> list[dict[str, Any]]:
     """Free-generate baseline and directional interventions on unseen cases.
 
@@ -58,7 +59,8 @@ def run_freegen(
         heldout_probe_ids=heldout_probe_ids)
     model.eval()
     runner = CausalProbe(model, tokenizer, layer=str(block_index), device=device,
-                         max_total_tokens=max_total_tokens)
+                         max_total_tokens=max_total_tokens,
+                         chat_template_kwargs=chat_template_kwargs)
     vectors = {}
 
     def capture(case):
@@ -120,6 +122,8 @@ def run_freegen(
                         case["messages"], alpha=alpha,
                         max_new_tokens=max_new_tokens, **parameters))
                     rows.append({
+                        **({"chat_template_kwargs": chat_template_kwargs}
+                           if chat_template_kwargs is not None else {}),
                         "schema_version": 1, "experiment": "heldout_freegen",
                         "trial_id": trial, "model": model_name,
                         "tokenizer": str(getattr(tokenizer, "name_or_path", "unknown")),
@@ -145,6 +149,7 @@ def run_freegen(
 def freegen_hf(*, input_path: str, output_path: str, model_name: str,
                device: str = "auto", dtype: str = "auto",
                allow_download: bool = False, trust_remote_code: bool = False,
+               chat_template_kwargs: dict | None = None,
                **kwargs) -> int:
     """Run using locally cached HF weights unless downloads are authorized."""
     try:
@@ -168,7 +173,8 @@ def freegen_hf(*, input_path: str, output_path: str, model_name: str,
         **load_kwargs).to(device)
     data = Path(input_path).read_bytes()
     rows = run_freegen(cases=_read_cases(input_path), model=model,
-                       tokenizer=tokenizer, device=device, model_name=model_name, **kwargs)
+                       tokenizer=tokenizer, device=device, model_name=model_name,
+                       chat_template_kwargs=chat_template_kwargs, **kwargs)
     sha = hashlib.sha256(data).hexdigest()
     for row in rows:
         row["input_sha256"] = sha

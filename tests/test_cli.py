@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from persona_holonomy.cli import main
 
 
@@ -126,3 +128,57 @@ def test_cli_version_matches_package_version():
     from persona_holonomy import __version__
     from persona_holonomy.cli import make_parser
     assert __version__ in make_parser().description
+
+
+@pytest.mark.parametrize("no_thinking", [False, True])
+@pytest.mark.parametrize("command,required,adapter,result", [
+    ("capture", [], "capture", 1),
+    ("intervene", [], "intervene_hf", 1),
+    ("sweep", [], "sweep_hf", 1),
+    ("freegen", [], "freegen_hf", 1),
+    ("perc-components", ["--manifest", "selection.json", "--feature-map", "map.json"],
+     "component_ablation_hf", 1),
+    ("sae-capture", ["--revision", "f" * 40, "--output-dir", "capture"],
+     "collect_hf", {"blocks": {"0": {}}}),
+    ("sae-attribution", ["--registry", "registry.json"],
+     "graph_hf", {"edges": [], "diagnostics": {"total_model_forwards": 0}}),
+])
+def test_hf_cli_parses_and_forwards_no_thinking(
+        monkeypatch, command, required, adapter, result, no_thinking):
+    from persona_holonomy import cli
+
+    calls = []
+
+    def fake_adapter(**kwargs):
+        calls.append(kwargs)
+        return result
+
+    monkeypatch.setattr(cli, adapter, fake_adapter)
+    argv = [command, "--model", "local-model", "--input", "cases.jsonl", *required]
+    if no_thinking:
+        argv.append("--no-thinking")
+    assert cli.make_parser().parse_args(argv).no_thinking is no_thinking
+    cli.main(argv)
+    assert len(calls) == 1
+    assert calls[0]["chat_template_kwargs"] == (
+        {"enable_thinking": False} if no_thinking else None)
+
+
+@pytest.mark.parametrize("no_thinking", [False, True])
+def test_pilot_cli_forwards_no_thinking(monkeypatch, no_thinking):
+    from persona_holonomy import cli
+
+    calls = []
+
+    def fake_plan(**kwargs):
+        calls.append(kwargs)
+        return {"estimated_graph_forwards_upper_bound": 50}
+
+    monkeypatch.setattr(cli, "plan_pilot", fake_plan)
+    argv = ["pilot-plan", "--model", "local-model", "--revision", "f" * 40,
+            "--output-dir", "pilot"]
+    if no_thinking:
+        argv.append("--no-thinking")
+    assert cli.make_parser().parse_args(argv).no_thinking is no_thinking
+    cli.main(argv)
+    assert calls[0]["no_thinking"] is no_thinking

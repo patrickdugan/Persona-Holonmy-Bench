@@ -29,6 +29,7 @@ class ToyTokenizer:
 
     def apply_chat_template(self, messages, **_kwargs):
         import torch
+        self.last_template_kwargs = _kwargs
         data = [1]
         for msg in messages:
             data.append({"system": 2, "user": 3, "assistant": 4}[msg["role"]])
@@ -102,17 +103,27 @@ def test_token_subsampling_and_layer_aliases():
         _resolve_layers("last,2", 3)
 
 
-def captured(tmp_path):
+def captured(tmp_path, *, chat_template_kwargs=None, tokenizer=None):
     torch = pytest.importorskip("torch")
     return collect_activations(cases=cases(), model=toy_model(),
-        tokenizer=ToyTokenizer(), model_name="toy", checkpoint_revision="toy-checkpoint-sha",
+        tokenizer=tokenizer if tokenizer is not None else ToyTokenizer(),
+        model_name="toy", checkpoint_revision="toy-checkpoint-sha",
         layers="0,last", output_dir=tmp_path / "capture", max_input_tokens=1024,
-        max_tokens_per_case=9)
+        max_tokens_per_case=9, chat_template_kwargs=chat_template_kwargs)
 
 
-def test_torch_capture_and_integrity(tmp_path):
+@pytest.mark.parametrize("options", [None, {"enable_thinking": False}])
+def test_torch_capture_and_integrity(tmp_path, options):
     np = pytest.importorskip("numpy")
-    manifest = captured(tmp_path)
+    tokenizer = ToyTokenizer()
+    manifest = captured(tmp_path, chat_template_kwargs=options, tokenizer=tokenizer)
+    assert tokenizer.last_template_kwargs == {
+        "tokenize": True, "add_generation_prompt": True,
+        "return_tensors": "pt", "return_dict": True, **(options or {})}
+    assert ("chat_template_kwargs" in manifest) is (options is not None)
+    if options is not None:
+        assert manifest["chat_template_kwargs"] == options
+    assert json.loads((tmp_path / "capture/capture-manifest.json").read_text()) == manifest
     assert set(manifest["blocks"]) == {"0", "2"}
     assert manifest["model"] == "toy"
     assert all(v["hidden_width"] == 10 for v in manifest["blocks"].values())

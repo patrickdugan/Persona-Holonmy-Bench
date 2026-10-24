@@ -41,7 +41,8 @@ def test_activation_report_matched_pairs():
         activation_report(rows + [rows[0]])
 
 
-def test_capture_with_fake_hf_model_is_offline_and_records_last_token(tmp_path, monkeypatch):
+@pytest.mark.parametrize("options", [None, {"enable_thinking": False}])
+def test_capture_with_fake_hf_model_is_offline_and_records_last_token(tmp_path, monkeypatch, options):
     """Exercises the optional adapter plumbing without large model downloads."""
     import json
     import sys
@@ -69,7 +70,9 @@ def test_capture_with_fake_hf_model_is_offline_and_records_last_token(tmp_path, 
             assert kwargs == {"local_files_only": True, "trust_remote_code": False}
             return FakeTokenizer()
         def apply_chat_template(self, messages, **kwargs):
-            assert kwargs["return_dict"] and kwargs["add_generation_prompt"]
+            assert kwargs == {"tokenize": True, "add_generation_prompt": True,
+                              "return_tensors": "pt", "return_dict": True,
+                              **(options or {})}
             return {"input_ids": Tensor([[12, 13, 14]])}
 
     class FakeModel:
@@ -109,12 +112,15 @@ def test_capture_with_fake_hf_model_is_offline_and_records_last_token(tmp_path, 
         "messages": [{"role": "user", "content": "hello"}]
     }) + "\n")
     count = capture(input_path=str(src), output_path=str(dst),
-                    model_name="fake-local-model", layers="0,last")
+                    model_name="fake-local-model", layers="0,last",
+                    chat_template_kwargs=options)
     assert count == 1
     record = json.loads(dst.read_text())
+    assert {k: v for k, v in record.items() if k == "chat_template_kwargs"} == (
+        {} if options is None else {"chat_template_kwargs": options})
     assert record["input_ids_sha256"]
     assert record["vectors"] == {"hs_0": [1., 0.], "hs_1": [0., 1.]}
     assert record["token_count"] == 3
     with pytest.raises(ValueError, match="limit is 2"):
         capture(input_path=str(src), output_path=str(dst), model_name="fake-local-model",
-                max_input_tokens=2)
+                max_input_tokens=2, chat_template_kwargs=options)

@@ -205,3 +205,30 @@ def test_graph_without_spanning_path_blocks_percolation(tmp_path):
     (root / "progress.json").write_text(json.dumps(state))
     with pytest.raises(ValueError, match="does not span"):
         run_stage(plan_path=root / "plan.json", stage="select", runner=lambda *_, **__: pytest.fail("no process allowed"))
+
+
+def test_no_thinking_plan_and_gpu_commands_are_opt_in(tmp_path):
+    default_root, false_root, enabled_root = [tmp_path / name for name in (
+        "default", "false", "enabled")]
+    default = pilot(tmp_path, output_dir=default_root)
+    disabled = pilot(tmp_path, output_dir=false_root, no_thinking=False)
+    enabled = pilot(tmp_path, output_dir=enabled_root, no_thinking=True)
+    assert "no_thinking" not in default
+    assert default == disabled
+    assert (default_root / "plan.json").read_bytes() == (false_root / "plan.json").read_bytes()
+    assert enabled == {**default, "no_thinking": True}
+    assert json.loads((enabled_root / "plan.json").read_text())["no_thinking"] is True
+    for stage in STAGES:
+        original = _commands(stage, default_root, default, "cuda", "float16")
+        assert original == _commands(stage, default_root, disabled, "cuda", "float16")
+        assert original == _commands(stage, default_root, {**default, "no_thinking": False},
+                                     "cuda", "float16")
+        changed = _commands(stage, default_root, enabled, "cuda", "float16")
+        for before, after in zip(original, changed, strict=True):
+            assert "--no-thinking" not in before
+            if before[3] in ("sae-capture", "sae-attribution", "perc-components"):
+                assert after == [*before, "--no-thinking"]
+            else:
+                assert after == before
+            # Every generated command remains valid for the CLI parser.
+            make_parser().parse_args(after[3:])

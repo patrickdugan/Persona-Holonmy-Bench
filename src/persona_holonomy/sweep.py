@@ -171,6 +171,7 @@ def run_sweep(
     device: str = "cpu", model_name: str = "unknown",
     self_check: bool = True,
     heldout_probe_ids: tuple[str, ...] = (),
+    chat_template_kwargs: dict | None = None,
 ) -> list[dict[str, Any]]:
     """Evaluate preregistered layers/doses with a single loaded model.
 
@@ -202,7 +203,8 @@ def run_sweep(
 
     for block_index in indices:
         runner = CausalProbe(model, tokenizer, layer=str(block_index),
-                             device=device, max_total_tokens=max_total_tokens)
+                             device=device, max_total_tokens=max_total_tokens,
+                             chat_template_kwargs=chat_template_kwargs)
         activations = {}
 
         def activation(case):
@@ -290,6 +292,8 @@ def run_sweep(
                         first_delta = _safe_delta(patched, score, "first_token_margin")
                         later_delta = _safe_delta(patched, score, "later_token_margin")
                         results.append({
+                            **({"chat_template_kwargs": chat_template_kwargs}
+                               if chat_template_kwargs is not None else {}),
                             "schema_version": 2,
                             "experiment": "direction_sweep",
                             "model": model_name,
@@ -485,7 +489,8 @@ def sweep_markdown(report: dict[str, Any]) -> str:
 def sweep_hf(
     *, input_path: str, output_path: str, model_name: str,
     device: str = "auto", dtype: str = "auto", allow_download: bool = False,
-    trust_remote_code: bool = False, **kwargs,
+    trust_remote_code: bool = False, chat_template_kwargs: dict | None = None,
+    **kwargs,
 ) -> int:
     """Opt-in local model load. Requires no network by default."""
     try:
@@ -508,7 +513,8 @@ def sweep_hf(
         model_name, dtype="auto" if dtype == "auto" else getattr(torch, dtype),
         **load_kwargs).to(device)
     rows = run_sweep(cases=_read_cases(input_path), model=model, tokenizer=tokenizer,
-                     model_name=model_name, device=device, **kwargs)
+                     model_name=model_name, device=device,
+                     chat_template_kwargs=chat_template_kwargs, **kwargs)
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", encoding="utf-8") as f:

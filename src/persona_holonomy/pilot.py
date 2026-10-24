@@ -55,7 +55,8 @@ def plan_pilot(*, output_dir: str | Path, model: str,
                top_features: int = 4, max_model_forwards: int = 250,
                max_total_tokens: int = 1536,
                max_tokens_per_case: int = 32,
-               random_controls: int = 4) -> dict[str, Any]:
+               random_controls: int = 4,
+               no_thinking: bool = False) -> dict[str, Any]:
     """Freeze PHB cases and a resource-bounded experiment plan, fully offline."""
     if not model.strip() or not checkpoint_revision.strip():
         raise ValueError("Explicit model path and pinned checkpoint revision are required")
@@ -113,6 +114,8 @@ def plan_pilot(*, output_dir: str | Path, model: str,
             "If the trained graph has no measured input-output path, stop and report that negative result.",
         ],
     }
+    if no_thinking:
+        plan["no_thinking"] = True
     _json(root / "plan.json", plan)
     _json(root / "progress.json", {"schema": SCHEMA,
                                     "plan_sha256": file_sha256(root / "plan.json"),
@@ -136,13 +139,14 @@ def _commands(stage: str, root: Path, plan: dict, device: str, dtype: str):
     model = plan["model"]
     common = ["--heldout-probes", "parser_validator"]
     base = [sys.executable, "-m", "persona_holonomy"]
+    template_flags = ["--no-thinking"] if plan.get("no_thinking", False) else []
     if stage == "capture":
         return [base + ["sae-capture", "--input", p("cases.jsonl"), "--model", model,
                         "--revision", plan["checkpoint_revision"], "--output-dir", p("capture"),
                         "--layers", ",".join(plan["layers"]), "--max-input-tokens",
                         str(plan["max_total_tokens"]), "--max-tokens-per-case",
                         str(plan["max_tokens_per_case"]), "--device", device,
-                        "--dtype", dtype, *common]]
+                        "--dtype", dtype, *common, *template_flags]]
     if stage == "fit":
         return [base + ["sae-fit", "--capture", p("capture/capture-manifest.json"),
                         "--output-dir", p("saes"), "--n-latents", "0", "--k", "8",
@@ -154,7 +158,7 @@ def _commands(stage: str, root: Path, plan: dict, device: str, dtype: str):
         return [base + ["sae-attribution-plan", *shared, "--output", p("attribution-plan.json")],
                 base + ["sae-attribution", *shared, "--max-total-tokens",
                         str(plan["max_total_tokens"]), "--device", device, "--dtype", dtype,
-                        "--output", p("attribution-graph.json")]]
+                        "--output", p("attribution-graph.json"), *template_flags]]
     if stage == "select":
         return [base + ["perc-select", "--graph", p("attribution-graph.json"),
                         "--shuffles", "32", "--random-controls",
@@ -168,7 +172,7 @@ def _commands(stage: str, root: Path, plan: dict, device: str, dtype: str):
         return [base + ["perc-components-plan", *shared, "--output", p("component-plan.json")],
                 base + ["perc-components", *shared, "--device", device, "--dtype", dtype,
                         "--max-total-tokens", str(plan["max_total_tokens"]),
-                        "--output", p("component-ablation.jsonl")],
+                        "--output", p("component-ablation.jsonl"), *template_flags],
                 base + ["perc-components-report", "--input", p("component-ablation.jsonl"),
                         "--output", p("component-report.json")]]
     raise ValueError(f"Unknown stage: {stage}")

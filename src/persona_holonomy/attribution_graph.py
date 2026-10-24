@@ -194,7 +194,8 @@ def measure_graph(*, cases: list[dict], registry: dict,
                   phase: str = "exit", source: str = "ordered",
                   reference: str = "tail_matched", holdout_fraction: float = .4,
                   split_seed: int = 20261022, max_total_tokens: int = 4096,
-                  device: str = "cpu") -> dict[str, Any]:
+                  device: str = "cpu",
+                  chat_template_kwargs: dict | None = None) -> dict[str, Any]:
     """Compute context-specific interventional edges on training cells only."""
     import torch
     preflight = graph_plan(cases=cases, registry=registry, model_name=model_name,
@@ -219,7 +220,8 @@ def measure_graph(*, cases: list[dict], registry: dict,
                 or item["validation_fvu"] < 0):
             raise ValueError("SAE registry is missing valid held-out reconstruction FVU")
     runner = CausalProbe(model, tokenizer, layer=str(chosen[0]),
-                         device=device, max_total_tokens=max_total_tokens)
+                         device=device, max_total_tokens=max_total_tokens,
+                         chat_template_kwargs=chat_template_kwargs)
     model.eval()
     paired = prepare_pairs(cases, source_conditions=(source,),
         target_condition=reference, phases=(phase,))
@@ -319,6 +321,8 @@ def measure_graph(*, cases: list[dict], registry: dict,
     return {
         "schema": GRAPH_SCHEMA,
         "provenance": {
+            **({"chat_template_kwargs": chat_template_kwargs}
+               if chat_template_kwargs is not None else {}),
             "edge_semantics": "direct_attribution",
             "estimator": ESTIMATOR,
             "model": model_name, "tokenizer": preflight["tokenizer"],
@@ -375,6 +379,7 @@ def graph_plan_file(*, cases_path: str, registry_path: str, output_path: str,
 def graph_hf(*, cases_path: str, registry_path: str, output_path: str,
              model_name: str, device: str = "auto", dtype: str = "auto",
              allow_download: bool = False, trust_remote_code: bool = False,
+             chat_template_kwargs: dict | None = None,
              **kwargs) -> dict:
     """No implicit downloads; refuse invalid provenance before loading model."""
     from .interventions import _read_cases
@@ -406,7 +411,8 @@ def graph_hf(*, cases_path: str, registry_path: str, output_path: str,
     result = measure_graph(cases=cases, registry=registry, model=model,
                            tokenizer=tokenizer, model_name=model_name,
                            registry_root=Path(registry_path).parent,
-                           device=device, **kwargs)
+                           device=device, chat_template_kwargs=chat_template_kwargs,
+                           **kwargs)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(result, indent=2, ensure_ascii=False,
         allow_nan=False) + "\n", encoding="utf-8")

@@ -14,6 +14,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from .chat import render_chat
+
 
 def parse_layers(value: str, n: int) -> tuple[int, ...]:
     """Hidden-state index 0 = embeddings, indexes 1..n-1 = layer outputs."""
@@ -107,6 +109,7 @@ def capture(
     layers: str = "last", device: str = "auto", dtype: str = "auto",
     allow_download: bool = False, trust_remote_code: bool = False,
     max_input_tokens: int = 4096, max_cases: int | None = None,
+    chat_template_kwargs: dict | None = None,
 ) -> int:
     """Capture selected hidden states on a local/cached Hugging Face chat model.
 
@@ -153,8 +156,9 @@ def capture(
             if not isinstance(row.get("messages"), list):
                 raise ValueError("Expected generated case JSONL with messages as an array")
             # Transformers v4 and v5 have slightly different return conventions.
-            encoded = tokenizer.apply_chat_template(
-                row["messages"], tokenize=True, add_generation_prompt=True,
+            encoded = render_chat(
+                tokenizer, row["messages"], chat_template_kwargs=chat_template_kwargs,
+                tokenize=True, add_generation_prompt=True,
                 return_tensors="pt", return_dict=True,
             )
             if isinstance(encoded, torch.Tensor):
@@ -183,6 +187,8 @@ def capture(
                 json.dumps(inputs["input_ids"].cpu().tolist(), separators=(",", ":")).encode()
             ).hexdigest()
             output.write(json.dumps({
+                **({"chat_template_kwargs": chat_template_kwargs}
+                   if chat_template_kwargs is not None else {}),
                 "schema_version": 1,
                 "case_id": row["case_id"],
                 "condition": row["condition"], "phase": row["phase"],

@@ -140,13 +140,19 @@ def test_transplant_alpha_zero_and_self_patch():
     assert "causal" in intervention_markdown(report).lower()
 
 
-def test_rank1_is_seed_heldout_and_has_null_control():
+@pytest.mark.parametrize("options", [None, {"enable_thinking": False}])
+def test_rank1_is_seed_heldout_and_has_null_control(options):
     model, tok = toy_model()
     rows = run_interventions(
         cases=samples(reps=4, variation="seeded_v1"), model=model, tokenizer=tok,
         mode="rank1", source_conditions=("ordered", "neutral"),
         phases=("exit",), max_total_tokens=256, model_name="toy",
+        chat_template_kwargs=options,
     )
+    for row in rows:
+        assert ("chat_template_kwargs" in row) is (options is not None)
+        if options is not None:
+            assert row["chat_template_kwargs"] == options
     train, test = split_seeds(range(9, 13))
     assert len(rows) == len(test) * 3  # ordered, neutral and randomized null
     assert all(row["seed"] in test for row in rows)

@@ -17,6 +17,7 @@ import random
 import re
 from typing import Any
 
+from .chat import render_chat
 from .interventions import _unpack_hidden, decoder_blocks, prepare_pairs, select_block
 from .perc_components import _hash_file, _load_json, _validate_plan
 from .sweep import _partition_pairs
@@ -133,7 +134,8 @@ def collect_activations(*, cases: list[dict], model: Any, tokenizer: Any,
                         max_input_tokens: int = 4096,
                         max_tokens_per_case: int = 64,
                         seed: int = 20261022,
-                        device: str = "cpu") -> dict:
+                        device: str = "cpu",
+                        chat_template_kwargs: dict | None = None) -> dict:
     """Collect bounded train-only token states from real decoder blocks.
 
     No model parameters or raw tokens/text are written. The captured vectors
@@ -164,8 +166,9 @@ def collect_activations(*, cases: list[dict], model: Any, tokenizer: Any,
         case = case_lookup[entry["case_id"]]
         if entry["messages_sha256"] != _sha_json(case["messages"]):
             raise ValueError("Case content changed after SAE preflight")
-        encoded = tokenizer.apply_chat_template(
-            case["messages"], tokenize=True, add_generation_prompt=True,
+        encoded = render_chat(
+            tokenizer, case["messages"], chat_template_kwargs=chat_template_kwargs,
+            tokenize=True, add_generation_prompt=True,
             return_tensors="pt", return_dict=True)
         if isinstance(encoded, torch.Tensor):
             inputs = {"input_ids": encoded.to(device)}
@@ -210,6 +213,8 @@ def collect_activations(*, cases: list[dict], model: Any, tokenizer: Any,
                 "max_tokens_per_case": max_tokens_per_case,
                 "capture_seed": seed, "token_counts": dict(token_counts),
                 "blocks": {}}
+    if chat_template_kwargs is not None:
+        manifest["chat_template_kwargs"] = chat_template_kwargs
     for index in indices:
         matrix = {role: np.concatenate(samples[index][role], axis=0).astype(np.float32)
                   for role in ("fit", "validation")}
@@ -233,6 +238,7 @@ def collect_activations(*, cases: list[dict], model: Any, tokenizer: Any,
 def collect_hf(*, input_path: str, output_dir: str, model_name: str,
                checkpoint_revision: str, device: str = "auto", dtype: str = "auto",
                allow_download: bool = False, trust_remote_code: bool = False,
+               chat_template_kwargs: dict | None = None,
                **kwargs) -> dict:
     """Load cached pretrained HF model only after enforcing data split plan."""
     from .interventions import _read_cases
@@ -257,7 +263,8 @@ def collect_hf(*, input_path: str, output_dir: str, model_name: str,
         dtype="auto" if dtype == "auto" else getattr(torch, dtype), **opts).to(device)
     return collect_activations(cases=cases, model=model, tokenizer=tok,
         model_name=model_name, checkpoint_revision=checkpoint_revision,
-        output_dir=output_dir, device=device, **kwargs)
+        output_dir=output_dir, device=device,
+        chat_template_kwargs=chat_template_kwargs, **kwargs)
 
 
 def _check_capture(capture: dict, root: Path) -> dict[str, tuple[Path, dict]]:

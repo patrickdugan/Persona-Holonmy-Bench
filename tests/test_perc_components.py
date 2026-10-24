@@ -128,11 +128,16 @@ def test_reject_bad_mappings_and_budget(tmp_path):
         _validate_plan(manifest, wrong, model_name="toy")
 
 
-def test_causal_component_ablation_paired_and_deterministic(tmp_path):
+@pytest.mark.parametrize("options", [None, {"enable_thinking": False}])
+def test_causal_component_ablation_paired_and_deterministic(tmp_path, options):
     model, tok, cases, manifest, fmap, train, test = specimen(tmp_path)
     rows = run_component_ablation(manifest=manifest, feature_map=fmap,
         cases=cases, model=model, tokenizer=tok, model_name="toy",
-        map_root=tmp_path, max_total_tokens=512)
+        map_root=tmp_path, max_total_tokens=512, chat_template_kwargs=options)
+    for row in rows:
+        assert ("chat_template_kwargs" in row) is (options is not None)
+        if options is not None:
+            assert row["chat_template_kwargs"] == options
     assert len(rows) == len(test) * len(manifest["selected_nodes"])
     assert all(r["schema"] == COMPONENT_SCHEMA for r in rows)
     assert all(r["seed"] in test and r["seed"] not in train for r in rows)

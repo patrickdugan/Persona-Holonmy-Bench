@@ -306,7 +306,8 @@ def run_component_ablation(*, manifest: dict, feature_map: dict,
                            phase: str = "exit", heldout_probes: tuple[str, ...] = ("parser_validator",),
                            holdout_fraction: float = .4, split_seed: int = 20261022,
                            alpha: float = 1., max_total_tokens: int = 4096,
-                           device: str = "cpu", self_check: bool = True) -> list[dict[str, Any]]:
+                           device: str = "cpu", self_check: bool = True,
+                           chat_template_kwargs: dict | None = None) -> list[dict[str, Any]]:
     """Ablate SAE-latent contributions, compared to norm-matched orthogonal nulls.
 
     Frozen feature contributions are computed from a baseline forward pass per
@@ -340,7 +341,8 @@ def run_component_ablation(*, manifest: dict, feature_map: dict,
         for b in all_blocks
     }
     runner = CausalProbe(model, tokenizer, layer=str(all_blocks[0]),
-                         device=device, max_total_tokens=max_total_tokens)
+                         device=device, max_total_tokens=max_total_tokens,
+                         chat_template_kwargs=chat_template_kwargs)
     out = []
     cache: dict[tuple, dict] = {}
     for donor, _recipient in evaluation:
@@ -383,6 +385,8 @@ def run_component_ablation(*, manifest: dict, feature_map: dict,
             if any(abs(norm[b] - null_norm[b]) > 1e-4 * max(1., norm[b]) for b in norm):
                 raise RuntimeError("Candidate and orthogonal null patch norms diverged")
             out.append({
+                **({"chat_template_kwargs": chat_template_kwargs}
+                   if chat_template_kwargs is not None else {}),
                 "schema": COMPONENT_SCHEMA, "model": model_name,
                 "tokenizer": tokenizer_name, "checkpoint_revision": feature_map["checkpoint_revision"],
                 "block_path": path, "selection_graph_sha256": manifest["graph_sha256"],
@@ -541,7 +545,8 @@ def component_ablation_hf(*, manifest_path: str, feature_path: str,
                          input_path: str, output_path: str, model_name: str,
                          device: str = "auto", dtype: str = "auto",
                          allow_download: bool = False,
-                         trust_remote_code: bool = False, **kwargs) -> int:
+                         trust_remote_code: bool = False,
+                         chat_template_kwargs: dict | None = None, **kwargs) -> int:
     # Validate metadata and local SHA before loading model weights.
     manifest, features, cases = (_load_json(manifest_path), _load_json(feature_path),
                                  _read_cases(input_path))
@@ -568,6 +573,7 @@ def component_ablation_hf(*, manifest_path: str, feature_path: str,
         model_name, dtype="auto" if dtype == "auto" else getattr(torch, dtype),
         **kwargs_load).to(device)
     results = run_component_ablation(manifest=manifest, feature_map=features,
+        chat_template_kwargs=chat_template_kwargs,
         cases=cases, model=model, tokenizer=tokenizer, model_name=model_name,
         map_root=Path(feature_path).parent, device=device, **kwargs)
     path = Path(output_path)

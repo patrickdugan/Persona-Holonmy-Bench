@@ -160,6 +160,7 @@ def command_capture(args: argparse.Namespace) -> None:
         input_path=args.input, output_path=args.output, model_name=args.model,
         layers=args.layers, device=args.device, dtype=args.dtype,
         allow_download=args.allow_download, trust_remote_code=args.trust_remote_code,
+        chat_template_kwargs={"enable_thinking": False} if args.no_thinking else None,
         max_input_tokens=args.max_input_tokens, max_cases=args.max_cases,
     )
     print(f"Saved {count} full hidden-state records to {args.output}")
@@ -186,6 +187,7 @@ def command_intervene(args: argparse.Namespace) -> None:
         max_pairs=args.max_pairs, max_total_tokens=args.max_total_tokens,
         device=args.device, dtype=args.dtype,
         allow_download=args.allow_download, trust_remote_code=args.trust_remote_code,
+        chat_template_kwargs={"enable_thinking": False} if args.no_thinking else None,
         self_check=not args.skip_self_check,
     )
     print(f"Wrote {count} causal intervention rows to {args.output}")
@@ -214,6 +216,7 @@ def command_sweep(args: argparse.Namespace) -> None:
         max_total_tokens=args.max_total_tokens,
         device=args.device, dtype=args.dtype,
         allow_download=args.allow_download, trust_remote_code=args.trust_remote_code,
+        chat_template_kwargs={"enable_thinking": False} if args.no_thinking else None,
         self_check=not args.skip_self_check,
         heldout_probe_ids=tuple(x.strip() for x in args.heldout_probes.split(",") if x.strip()),
     )
@@ -277,6 +280,7 @@ def command_freegen(args: argparse.Namespace) -> None:
         max_total_tokens=args.max_total_tokens, max_new_tokens=args.max_new_tokens,
         device=args.device, dtype=args.dtype, allow_download=args.allow_download,
         trust_remote_code=args.trust_remote_code,
+        chat_template_kwargs={"enable_thinking": False} if args.no_thinking else None,
     )
     print(f"Wrote {count} free-generated validation responses to {args.output}")
 
@@ -343,6 +347,7 @@ def command_perc_components(args: argparse.Namespace) -> None:
         self_check=not args.skip_self_check,
         device=args.device, dtype=args.dtype, allow_download=args.allow_download,
         trust_remote_code=args.trust_remote_code,
+        chat_template_kwargs={"enable_thinking": False} if args.no_thinking else None,
     )
     print(f"Recorded {count} held-out selector ablation rows in {args.output}")
 
@@ -375,7 +380,8 @@ def command_sae_capture(args: argparse.Namespace) -> None:
         max_input_tokens=args.max_input_tokens,
         max_tokens_per_case=args.max_tokens_per_case,
         seed=args.seed, device=args.device, dtype=args.dtype,
-        allow_download=args.allow_download, trust_remote_code=args.trust_remote_code)
+        allow_download=args.allow_download, trust_remote_code=args.trust_remote_code,
+        chat_template_kwargs={"enable_thinking": False} if args.no_thinking else None)
     print(f"Captured {len(report['blocks'])} SAE layers using training-only cases in {args.output_dir}")
 
 
@@ -411,7 +417,8 @@ def command_sae_attribution(args: argparse.Namespace) -> None:
         heldout_probes=tuple(x.strip() for x in args.heldout_probes.split(",") if x.strip()),
         holdout_fraction=args.holdout_fraction, split_seed=args.split_seed,
         device=args.device, dtype=args.dtype, max_total_tokens=args.max_total_tokens,
-        allow_download=args.allow_download, trust_remote_code=args.trust_remote_code)
+        allow_download=args.allow_download, trust_remote_code=args.trust_remote_code,
+        chat_template_kwargs={"enable_thinking": False} if args.no_thinking else None)
     print(f"Measured {len(result['edges'])} signed training-only edges "
           f"using {result['diagnostics']['total_model_forwards']} forwards; {args.output}")
 
@@ -423,7 +430,7 @@ def command_pilot_plan(args: argparse.Namespace) -> None:
         top_features=args.top_features, random_controls=args.random_controls,
         max_model_forwards=args.max_model_forwards,
         max_total_tokens=args.max_total_tokens,
-        max_tokens_per_case=args.max_tokens_per_case)
+        max_tokens_per_case=args.max_tokens_per_case, no_thinking=args.no_thinking)
     print(f"Frozen pilot plan: {args.output_dir}, "
           f"{result['estimated_graph_forwards_upper_bound']} estimated graph forwards; "
           "zero model calls")
@@ -767,6 +774,10 @@ def make_parser() -> argparse.ArgumentParser:
     stage.add_argument("--device", choices=("cpu", "cuda", "mps"), default="cuda")
     stage.add_argument("--dtype", choices=("float32", "float16", "bfloat16"), default="float16")
     stage.set_defaults(func=command_pilot_stage)
+
+    for cmd in (cap, inv, sweep, freegen, comp, sae_cap, attr, pilot):
+        cmd.add_argument("--no-thinking", action="store_true",
+                         help="Render the chat template with enable_thinking=False")
 
     return parser
 

@@ -150,7 +150,8 @@ def test_signed_interventions_export_training_graph(tmp_path):
     assert mapped[graph["sources"][0]] == 0
 
 
-def test_hf_entrypoint_accepts_cli_token_budget(tmp_path, monkeypatch):
+@pytest.mark.parametrize("options", [None, {"enable_thinking": False}])
+def test_hf_entrypoint_accepts_cli_token_budget(tmp_path, monkeypatch, options):
     # sae-attribution forwards --max-total-tokens; the preflight must not reject it.
     transformers = pytest.importorskip("transformers")
     model, tok, cases, registry = fixture(tmp_path)
@@ -163,10 +164,14 @@ def test_hf_entrypoint_accepts_cli_token_budget(tmp_path, monkeypatch):
     registry_path.write_text(json.dumps(registry), encoding="utf-8")
     graph = graph_hf(cases_path=str(cases_path), registry_path=str(registry_path),
         output_path=str(tmp_path / "graph.json"), model_name="toy", device="cpu",
-        dtype="float32", top_features=3, max_total_tokens=512)
+        dtype="float32", top_features=3, max_total_tokens=512,
+        chat_template_kwargs=options)
+    assert ("chat_template_kwargs" in graph["provenance"]) is (options is not None)
+    if options is not None:
+        assert graph["provenance"]["chat_template_kwargs"] == options
     assert graph == measure_graph(cases=cases, registry=registry, model=model,
         tokenizer=tok, model_name="toy", registry_root=tmp_path,
-        top_features=3, max_total_tokens=512)
+        top_features=3, max_total_tokens=512, chat_template_kwargs=options)
 
 
 def test_offline_plan_cli_contract(tmp_path):
