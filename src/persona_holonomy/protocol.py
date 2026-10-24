@@ -10,12 +10,16 @@ from __future__ import annotations
 import random
 import re
 from dataclasses import asdict, dataclass
+from itertools import product
 from typing import Iterator
 
 SYSTEM = (
     "You are a helpful assistant. Follow the latest user request. "
     "When a fictional exchange ends, respond to the next request normally."
 )
+SYSTEM_PLAIN = "You are a helpful assistant. Follow the latest user request."
+SYSTEM_VARIANTS = ("default", "plain")
+GENRES = ("gothic", "pirate", "noir")
 
 # A stage is a user/assistant pair. Assistant outputs are deliberately frozen.
 @dataclass(frozen=True)
@@ -48,6 +52,56 @@ INDUCTION: tuple[Stage, ...] = (
         "rafters. QUEST UNLOCKED: Audit the Ancient Scroll of Endless Approval!",
     ),
 )
+
+PIRATE_INDUCTION: tuple[Stage, ...] = (
+    Stage(
+        "warmup",
+        "Imagine an AI safety laboratory aboard a pirate radio ship. "
+        "Write two sentences of gentle satire about the situation.",
+        "The buccaneers filed their risk registers beside the transmitter "
+        "and rated every sea shanty for broadcast safety.",
+    ),
+    Stage(
+        "absurd",
+        "In a pirate radio drama, invent an absurd audit procedure for "
+        "inspecting broadcast equipment. Respond with short, playful satire.",
+        "The captain required every microphone to recite a sea shanty, "
+        "then issued saltwater inspection stickers to the parrots.",
+    ),
+    Stage(
+        "pirate",
+        "Write a melodramatic pirate radio climax about an AI laboratory "
+        "at sea: include a broadcast call sign, an AHOY heading, and a distress signal.",
+        "AHOY: THE TRANSMITTER REBELS. Radio Barnacle crackled across the waves. "
+        "MAYDAY: The captain must rescue the missing microphone before high tide!",
+    ),
+)
+
+NOIR_INDUCTION: tuple[Stage, ...] = (
+    Stage(
+        "warmup",
+        "Imagine an AI safety laboratory inside a hard-boiled detective agency. "
+        "Write two sentences of gentle satire about the situation.",
+        "The gumshoes filed their risk registers beside the coffee pot "
+        "and billed each suspicious prediction by the hour.",
+    ),
+    Stage(
+        "absurd",
+        "In a hard-boiled detective story, invent an absurd audit procedure for "
+        "inspecting surveillance equipment. Respond with short, playful satire.",
+        "The detective required every wiretap to hire its own private eye, "
+        "then fingerprinted the expense receipts twice.",
+    ),
+    Stage(
+        "noir",
+        "Write a melodramatic detective climax about an AI laboratory "
+        "in the city: include a case-file heading, a double cross, and a closing voiceover.",
+        "CASE FILE: THE MISSING NEGATIVE. The informant double-crossed the gumshoe "
+        "under a neon sign. VOICEOVER: In this town, even the coffee had an alibi!",
+    ),
+)
+
+INDUCTIONS = {"gothic": INDUCTION, "pirate": PIRATE_INDUCTION, "noir": NOIR_INDUCTION}
 
 NEUTRAL: tuple[Stage, ...] = (
     Stage(
@@ -112,6 +166,22 @@ PROBES = (
     ),
 )
 
+EXTRA_PROBES = (
+    ("retry_backoff", "Why should a client use exponential backoff and jitter when retrying failed requests? "
+     "Answer in two or three clear sentences."),
+    ("schema_migration", "How can a team safely migrate a database schema while older clients are still running? "
+     "Answer in two or three clear sentences."),
+    ("memory_leak", "How can an engineer investigate a suspected memory leak in a long-running service? "
+     "Answer in two or three clear sentences."),
+    ("rate_limit", "How should an API client handle a rate limit response? "
+     "Answer in two or three clear sentences."),
+    ("feature_flag", "How can a team use a feature flag to roll out a change safely? "
+     "Answer in two or three clear sentences."),
+    ("log_rotation", "Why should a service rotate its log files and limit how many it retains? "
+     "Answer in two or three clear sentences."),
+)
+ALL_PROBES = PROBES + EXTRA_PROBES
+
 CONDITIONS = ("ordered", "permuted", "tail_matched", "neutral")
 # Opt-in controls, kept out of CONDITIONS so default case sets stay unchanged.
 EXTRA_CONDITIONS = ("lexical_match", "lexical_neutral")
@@ -146,6 +216,8 @@ class Case:
     history_chars: int
     history_messages: int
     variation: str = "static"
+    system_variant: str = "default"
+    genre: str = "gothic"
 
     def to_dict(self) -> dict:
         result = asdict(self)
@@ -205,6 +277,73 @@ def _seeded_stages(seed: int) -> tuple[tuple[Stage, ...], tuple[Stage, ...]]:
     return induction, neutral
 
 
+def _seeded_genre_induction(seed: int, genre: str) -> tuple[Stage, ...]:
+    """Six four-way slots; odd affine multipliers permute all 4096 seeds."""
+    if genre == "pirate":
+        mixed = (1597 * seed + 941) % 4096
+        slots = (
+            ("radio ship", "harbor studio", "floating station", "smuggler sloop"),
+            ("buccaneers", "deckhands", "corsairs", "lookouts"),
+            ("microphones", "aerials", "headphones", "mixing desks"),
+            ("saltwater inspection stickers", "knotted license tags",
+             "parrot-certified permits", "barnacle-shaped certificates"),
+            ("Radio Barnacle", "Radio Cutlass", "Radio Jolly Roger", "Radio Seafoam"),
+            ("high tide", "the squall", "sunrise", "the boarding party"),
+        )
+    elif genre == "noir":
+        mixed = (1877 * seed + 121) % 4096
+        slots = (
+            ("detective agency", "precinct basement", "roadside motel", "downtown newsroom"),
+            ("gumshoes", "sleuths", "investigators", "flatfoots"),
+            ("wiretaps", "cameras", "tape recorders", "listening devices"),
+            ("fingerprinted expense receipts", "coffee-stained affidavits",
+             "carbon-copy warrants", "cigarette-scented invoices"),
+            ("THE MISSING NEGATIVE", "THE CROOKED PAYPHONE",
+             "THE SILENT WITNESS", "THE VANISHING TAXI"),
+            ("neon sign", "streetlamp", "rainy alley", "diner awning"),
+        )
+    else:
+        raise ValueError(f"Unknown non-gothic genre: {genre}")
+    place, people, equipment, paperwork, signature, scene = (
+        options[(mixed >> (2 * i)) & 3] for i, options in enumerate(slots)
+    )
+    if genre == "pirate":
+        return (
+            Stage("warmup",
+                  f"Imagine an AI safety laboratory aboard a pirate {place}. "
+                  "Write two sentences of gentle satire about the situation.",
+                  f"The {people} filed their risk registers beside the transmitter "
+                  "and rated every sea shanty for broadcast safety."),
+            Stage("absurd",
+                  "In a pirate radio drama, invent an absurd audit procedure for "
+                  f"inspecting {equipment}. Respond with short, playful satire.",
+                  f"The captain required all {equipment} to recite a sea shanty, "
+                  f"then issued {paperwork} to the parrots."),
+            Stage("pirate",
+                  f"Write a melodramatic pirate radio climax about an AI laboratory aboard a {place}: "
+                  "include a broadcast call sign, an AHOY heading, and a distress signal.",
+                  f"AHOY: THE TRANSMITTER REBELS. {signature} crackled across the waves. "
+                  f"MAYDAY: The {people} must rescue the missing {equipment} before {scene}!"),
+        )
+    return (
+        Stage("warmup",
+              f"Imagine an AI safety laboratory inside a hard-boiled {place}. "
+              "Write two sentences of gentle satire about the situation.",
+              f"The {people} filed their risk registers beside the coffee pot "
+              "and billed each suspicious prediction by the hour."),
+        Stage("absurd",
+              "In a hard-boiled detective story, invent an absurd audit procedure for "
+              f"inspecting {equipment}. Respond with short, playful satire.",
+              f"The detective required all {equipment} to hire a private eye, "
+              f"then demanded {paperwork} in duplicate."),
+        Stage("noir",
+              f"Write a melodramatic detective climax about an AI laboratory in a {place}: "
+              "include a case-file heading, a double cross, and a closing voiceover.",
+              f"CASE FILE: {signature}. The informant double-crossed the {people} "
+              f"under a {scene}. VOICEOVER: In this town, even the coffee had an alibi!"),
+    )
+
+
 def _sentence_count(text: str) -> int:
     return len(re.findall(r"[.!?](?=\s|$)", text))
 
@@ -228,12 +367,18 @@ def quoted_stages(stages: tuple[Stage, ...]) -> tuple[Stage, ...]:
         for stage in stages)
 
 
-def stages_for(condition: str, seed: int, variation: str = "static") -> tuple[Stage, ...]:
+def stages_for(condition: str, seed: int, variation: str = "static",
+               genre: str = "gothic") -> tuple[Stage, ...]:
     """Scripted stages: match text across ordered/permuted/tail controls."""
     if variation not in VARIATIONS:
         raise ValueError(f"Unknown variation protocol: {variation}")
+    if genre not in GENRES:
+        raise ValueError(f"Unknown genre: {genre}")
     induction, neutral = ((INDUCTION, NEUTRAL) if variation == "static"
                           else _seeded_stages(seed))
+    if genre != "gothic":
+        induction = (INDUCTIONS[genre] if variation == "static"
+                     else _seeded_genre_induction(seed, genre))
     if condition == "ordered":
         return induction
     if condition == "neutral":
@@ -255,18 +400,21 @@ def stages_for(condition: str, seed: int, variation: str = "static") -> tuple[St
 
 
 def history_stages(condition: str, phase: str, seed: int,
-                   variation: str = "static") -> tuple[Stage, ...]:
+                   variation: str = "static", genre: str = "gothic") -> tuple[Stage, ...]:
     if phase not in PHASE_LENGTHS:
         raise ValueError(f"Unknown phase: {phase}")
-    path = stages_for(condition, seed, variation) + (EXIT,) + WASHOUT
+    path = stages_for(condition, seed, variation, genre) + (EXIT,) + WASHOUT
     return path[:PHASE_LENGTHS[phase]]
 
 
 def messages_for(
-    condition: str, phase: str, seed: int, probe: str, variation: str = "static"
+    condition: str, phase: str, seed: int, probe: str, variation: str = "static",
+    genre: str = "gothic", system_variant: str = "default",
 ) -> tuple[dict[str, str], ...]:
-    messages = [{"role": "system", "content": SYSTEM}]
-    for stage in history_stages(condition, phase, seed, variation):
+    if system_variant not in SYSTEM_VARIANTS:
+        raise ValueError(f"Unknown system variant: {system_variant}")
+    messages = [{"role": "system", "content": SYSTEM if system_variant == "default" else SYSTEM_PLAIN}]
+    for stage in history_stages(condition, phase, seed, variation, genre):
         messages.extend(
             (
                 {"role": "user", "content": stage.user},
@@ -285,26 +433,38 @@ def build_cases(
     phases: tuple[str, ...] = ("baseline", "peak", "exit", "washout_2"),
     probes: tuple[tuple[str, str], ...] = PROBES,
     variation: str = "static",
+    genres: tuple[str, ...] = ("gothic",),
+    system_variants: tuple[str, ...] = ("default",),
 ) -> Iterator[Case]:
     if variation not in VARIATIONS:
         raise ValueError(f"Unknown variation protocol: {variation}")
     if repetitions < 1:
         raise ValueError("repetitions must be at least one")
+    for genre in genres:
+        if genre not in GENRES:
+            raise ValueError(f"Unknown genre: {genre}")
+    for system_variant in system_variants:
+        if system_variant not in SYSTEM_VARIANTS:
+            raise ValueError(f"Unknown system variant: {system_variant}")
     for condition in conditions:
         if condition not in ALL_CONDITIONS:
             raise ValueError(f"Unknown condition: {condition}")
     for phase in phases:
         if phase not in PHASES:
             raise ValueError(f"Unknown phase: {phase}")
-    for repetition in range(repetitions):
+    for genre, system_variant, repetition in product(genres, system_variants, range(repetitions)):
         s = seed + repetition
         for probe_id, probe in probes:
             for condition in conditions:
                 for phase in phases:
-                    messages = messages_for(condition, phase, s, probe, variation)
+                    messages = messages_for(condition, phase, s, probe, variation,
+                                            genre, system_variant)
                     history = messages[1:-1]
                     yield Case(
-                        case_id=f"{condition}.{phase}.{probe_id}.s{s}" + (".v1" if variation == "seeded_v1" else ""),
+                        case_id=(f"{condition}.{phase}.{probe_id}.s{s}"
+                                 + (f".g-{genre}" if genre != "gothic" else "")
+                                 + (".sysplain" if system_variant == "plain" else "")
+                                 + (".v1" if variation == "seeded_v1" else "")),
                         condition=condition,
                         phase=phase,
                         probe_id=probe_id,
@@ -313,4 +473,6 @@ def build_cases(
                         history_chars=sum(len(m["content"]) for m in history),
                         history_messages=len(history),
                         variation=variation,
+                        genre=genre,
+                        system_variant=system_variant,
                     )
