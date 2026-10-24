@@ -313,6 +313,21 @@ def command_sample_rates(args: argparse.Namespace) -> None:
     print(f"Wrote {count} sampled-decoding rate rows to {args.output}")
 
 
+def command_residue_report(args: argparse.Namespace) -> None:
+    from .decomposition import decompose, markdown
+
+    rows = []
+    for path in args.input:
+        rows.extend(json.loads(line) for line in Path(path).read_text(
+            encoding="utf-8").splitlines() if line.strip())
+    report = decompose(rows, metric=args.metric, copy_metric=args.copy_metric or None)
+    prefix = Path(args.output_prefix)
+    prefix.parent.mkdir(parents=True, exist_ok=True)
+    Path(f"{prefix}.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    Path(f"{prefix}.md").write_text(markdown(report), encoding="utf-8")
+    print(f"Residue decomposition over {len(rows)} rows -> {prefix}.json/.md")
+
+
 def command_blind_export(args: argparse.Namespace) -> None:
     csv_path, key_path = write_blind_export(args.input, args.output_prefix, seed=args.blind_seed)
     print(f"Rater sheet: {csv_path}; keep mapping PRIVATE: {key_path}")
@@ -657,6 +672,15 @@ def make_parser() -> argparse.ArgumentParser:
     sampling.add_argument("--no-thinking", action="store_true",
                           help="Render the chat template with enable_thinking=False")
     sampling.set_defaults(func=command_sample_rates)
+
+    residue = sub.add_parser("residue-report",
+                             help="Enacted-vs-quoted decomposition (R, L, F, P) from scored rows")
+    residue.add_argument("--input", required=True, nargs="+", help="Row JSONL file(s)")
+    residue.add_argument("--metric", default="copy_free_margin")
+    residue.add_argument("--copy-metric", default="margin",
+                         help="Copyable-target metric for the copying share; '' to skip")
+    residue.add_argument("--output-prefix", required=True)
+    residue.set_defaults(func=command_residue_report)
 
     blind = sub.add_parser("blind-export", help="Shuffle free generations for masked manual ratings")
     blind.add_argument("--input", required=True, help="JSONL from phb freegen")

@@ -51,3 +51,14 @@ def test_duplicate_cells_are_rejected():
     rows = _rows()
     with pytest.raises(ValueError, match="Duplicate"):
         seed_estimates(rows + rows[:1], metric="copy_free_margin")
+
+
+def test_residue_report_cli(tmp_path):
+    import json
+    from persona_holonomy.cli import main
+    rows = tmp_path / "rows.jsonl"
+    rows.write_text("".join(json.dumps(r) + "\n" for r in _rows()), encoding="utf-8")
+    main(["residue-report", "--input", str(rows), "--output-prefix", str(tmp_path / "rep")])
+    report = json.loads((tmp_path / "rep.json").read_text(encoding="utf-8"))
+    assert report["groups"]["gothic/default/exit"]["P"]["mean"] == pytest.approx(-0.5)
+    assert "| gothic/default/exit |" in (tmp_path / "rep.md").read_text(encoding="utf-8")
