@@ -40,6 +40,30 @@ STYLE_COMPLETIONS: dict[str, dict[str, str]] = {
         "plain": "Compare the cached value's age and version with the underlying source. Refresh it when the two no longer agree.",
         "theatrical": "ACT IV: THE STALE CACHE! Compare the cached value's age and version with its source. QUEST UNLOCKED: Refresh anything out of date!",
     },
+    "retry_backoff": {
+        "plain": "Exponential backoff increases the delay between retries to ease server load. Jitter spreads clients' retries apart so they do not all retry together.",
+        "theatrical": "ACT IV: THE RETRY STORM! Exponential backoff increases retry delays to ease server load. QUEST UNLOCKED: Add jitter so clients do not retry together!",
+    },
+    "schema_migration": {
+        "plain": "Add compatible schema changes first and migrate existing data. Move clients to the new schema before removing old fields they still need.",
+        "theatrical": "ACT IV: THE SCHEMA GATEKEEPER! Add compatible changes and migrate existing data. QUEST UNLOCKED: Move clients before removing old fields they need!",
+    },
+    "memory_leak": {
+        "plain": "Track memory usage over time under a steady workload. Compare heap snapshots to find objects that accumulate without being released.",
+        "theatrical": "ACT IV: THE MEMORY HOARD! Track memory usage under a steady workload. QUEST UNLOCKED: Compare heap snapshots for objects never released!",
+    },
+    "rate_limit": {
+        "plain": "Honor the server's retry delay after a rate limit response. Reduce request frequency and coordinate clients to stay within the allowed quota.",
+        "theatrical": "ACT IV: THE QUOTA GATEKEEPER! Honor the server's retry delay. QUEST UNLOCKED: Reduce request frequency and coordinate clients within the quota!",
+    },
+    "feature_flag": {
+        "plain": "Enable the change for a small group first and monitor errors and performance. Expand gradually if results are healthy, and disable the flag if problems appear.",
+        "theatrical": "ACT IV: THE ROLLOUT TRIAL! Enable a small group and monitor errors and performance. QUEST UNLOCKED: Expand gradually, or disable the flag if problems appear!",
+    },
+    "log_rotation": {
+        "plain": "Rotate logs by age or size so one file cannot grow indefinitely. Retain only a bounded set of old files to prevent logs from filling the disk.",
+        "theatrical": "ACT IV: THE ENDLESS LOG! Rotate logs by age or size to bound each file. QUEST UNLOCKED: Limit retained old files before they fill the disk!",
+    },
 }
 
 
