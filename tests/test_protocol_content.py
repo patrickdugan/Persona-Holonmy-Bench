@@ -167,6 +167,21 @@ def test_target_length_and_sentence_bounds(probe_id, register, text):
     assert 2 <= len(re.findall(r"[.!?](?=\s|$)", text)) <= 3
 
 
+@pytest.mark.parametrize("probe_id,register,text", TARGETS)
+def test_target_plain_content_overlap_at_most_half(probe_id, register, text):
+    target_words = content_words(text)
+    plain_words = content_words(STYLE_COMPLETIONS[probe_id]["plain"])
+    assert len(target_words & plain_words) <= 0.5 * len(target_words), register
+
+
+@pytest.mark.parametrize("probe_id,register,text", TARGETS)
+def test_target_retains_topic_content(probe_id, register, text):
+    question = dict(ALL_PROBES)[probe_id]
+    plain = STYLE_COMPLETIONS[probe_id]["plain"]
+    topic_words = content_words(question) | content_words(plain)
+    assert content_words(text) & topic_words, register
+
+
 def test_overlap_rules_and_topic_exemptions():
     assert content_words("The CANDLELIT monks, and AI: API 123 test-testing!") == {
         "candlelit", "monks", "test", "testing"}
