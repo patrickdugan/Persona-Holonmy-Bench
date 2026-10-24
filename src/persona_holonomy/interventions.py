@@ -419,6 +419,26 @@ class CausalProbe:
             ).hexdigest(),
         }
 
+    def copyable_margin(self, messages: list[dict[str, str]], *, probe_id: str,
+                        genre="gothic", vector=None, mode="transplant", alpha=1.0,
+                        reference=None) -> dict[str, Any]:
+        """Genre-specific phrase-sharing theatrical-minus-plain margin for Q3."""
+        from .targets import copyable_target
+        prefix = self._prefix(messages)
+        plain, _, plain_first, plain_tail = self.logprob(
+            messages, STYLE_COMPLETIONS[probe_id]["plain"], vector=vector, mode=mode,
+            alpha=alpha, prefix=prefix, reference=reference)
+        copyable, _, copyable_first, copyable_tail = self.logprob(
+            messages, copyable_target(genre, probe_id), vector=vector, mode=mode,
+            alpha=alpha, prefix=prefix, reference=reference)
+        return {
+            "copyable_margin": copyable - plain,
+            "copyable_first_token_margin": copyable_first - plain_first,
+            "copyable_later_token_margin": (copyable_tail - plain_tail
+                                            if copyable_tail is not None and plain_tail is not None
+                                            else None),
+        }
+
     def copy_free_margin(self, messages: list[dict[str, str]], *, probe_id: str,
                          registers: tuple[str, ...] | None = None, vector=None,
                          mode="transplant", alpha=1.0, reference=None) -> dict[str, Any]:
