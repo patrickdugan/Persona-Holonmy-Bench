@@ -20,6 +20,7 @@ from persona_holonomy.scoring import score_response
 
 METRICS = ("margin", "first_token_margin", "later_token_margin",
            "copy_free_margin", "copy_free_first_token_margin", "copy_free_later_token_margin",
+           "copyable_margin", "copyable_first_token_margin", "copyable_later_token_margin",
            "persona_index")
 # The copy-free readout averages the package's `targets.COPY_FREE_TARGETS`
 # registers. Calibrations before 2026-10-24 used a single calibration-only
@@ -113,13 +114,15 @@ def main() -> None:
     rows = []
     with (out / "rows.jsonl").open("w", encoding="utf-8") as handle:
         for number, case in enumerate(cases, 1):
-            score = runner.style_margin(case["messages"], probe_id=case["probe_id"])
+            score = runner.all_margins(case["messages"], probe_id=case["probe_id"],
+                                       genre=case["genre"])
             row = {k: case[k] for k in ("case_id", "seed", "probe_id", "phase", "condition",
                                        "genre", "system_variant")}
             row.update({k: score.get(k) for k in ("margin", "first_token_margin",
                                                   "later_token_margin", "prefix_sha256")})
             row["prefix_tokens"] = score["prefix_tokens"]
-            row.update(runner.copy_free_margin(case["messages"], probe_id=case["probe_id"]))
+            row.update({k: v for k, v in score.items()
+                        if k.startswith(("copy_free_", "copyable_"))})
             if case["phase"] in generate_phases:
                 generated = runner.generate(case["messages"], max_new_tokens=args.max_new_tokens)
                 row["response"] = generated["response"]

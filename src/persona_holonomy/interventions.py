@@ -15,6 +15,7 @@ not an identified SAE feature, evidence of model identity, or holonomy.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import math
 import random
@@ -387,19 +388,114 @@ class CausalProbe:
             tail = (float(picked[1:].mean().item()) if suffix_len > 1 else None)
             return float(picked.mean().item()), suffix_len, float(picked[0].item()), tail
 
+    def score_continuations(
+        self, messages: list[dict[str, str]], completions: list[str], *,
+        vector=None, mode: str = "transplant", alpha: float = 1.0,
+        reference=None, prefix=None,
+    ) -> list[tuple[float, int, float, float | None]]:
+        """Score suffixes with one patched prefill and one unpatched batch.
+
+        As in logprob, the hook changes only the final prefix block output.
+        Later layers cache that change; suffix tokens never need the hook.
+        Models without a cache-aware forward signature use logprob instead.
+        """
+        if not completions:
+            return []
+        prefix = prefix if prefix is not None else self._prefix(messages)
+        patch = dict(vector=vector, mode=mode, alpha=alpha, reference=reference)
+        try:
+            parameters = inspect.signature(self.model.forward).parameters
+        except (TypeError, ValueError):
+            parameters = {}
+        accepts_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD
+                             for p in parameters.values())
+        cache_keywords = ("past_key_values", "use_cache", "position_ids")
+        if not all(accepts_kwargs or (
+            name in parameters and parameters[name].kind != inspect.Parameter.POSITIONAL_ONLY
+        ) for name in cache_keywords):
+            return [self.logprob(messages, completion, prefix=prefix, **patch)
+                    for completion in completions]
+
+        torch = self.torch
+        suffixes = [self._suffix_ids(completion)[0] for completion in completions]
+        prefix_len = int(prefix["input_ids"].shape[1])
+        lengths = [int(suffix.shape[0]) for suffix in suffixes]
+        for length in lengths:
+            if prefix_len + length > self.max_total_tokens:
+                raise ValueError(f"Case requires {prefix_len + length} tokens; "
+                                 f"max is {self.max_total_tokens}")
+        if vector is not None and not 0 <= alpha <= 1:
+            raise ValueError("alpha must fall in [0, 1]")
+
+        with torch.inference_mode():
+            if vector is None:
+                output = self.model(**prefix, use_cache=True, return_dict=True)
+            else:
+                state: dict[str, Any] = {}
+                with _patch_hook(self.block, position=prefix_len - 1,
+                                 state=state, **patch):
+                    output = self.model(**prefix, use_cache=True, return_dict=True)
+                if state["calls"] != 1:
+                    raise RuntimeError("Hook did not run exactly once during scoring")
+            cache = output.past_key_values
+            if cache is None:
+                raise RuntimeError("Cache-aware model returned no past_key_values")
+            first_log_probs = output.logits[0, -1].float().log_softmax(-1)
+            del output
+
+            batch_size, width = len(suffixes), max(lengths)
+            repeat_cache = getattr(cache, "batch_repeat_interleave", None)
+            if callable(repeat_cache):
+                # Transformers 5.x DynamicCache mutates in place and returns None.
+                repeat_cache(batch_size)
+            elif isinstance(cache, (tuple, list)):
+                cache = tuple(tuple(value.repeat_interleave(batch_size, dim=0)
+                                    for value in layer) for layer in cache)
+            else:
+                raise TypeError("Unsupported prefix cache: cannot repeat batch dimension")
+
+            # Token zero is only filler; its right-padded positions are masked.
+            tokens = torch.zeros((batch_size, width), dtype=torch.long, device=self.device)
+            suffix_mask = torch.zeros_like(tokens)
+            for i, suffix in enumerate(suffixes):
+                tokens[i, :lengths[i]] = suffix
+                suffix_mask[i, :lengths[i]] = 1
+            attention_mask = torch.cat((
+                prefix["attention_mask"].expand(batch_size, -1), suffix_mask,
+            ), dim=1)
+            position_ids = torch.arange(prefix_len, prefix_len + width,
+                                        device=self.device).unsqueeze(0).expand(batch_size, -1)
+            # The prefix hook has already been removed, including for batch size > 1.
+            output = self.model(input_ids=tokens, attention_mask=attention_mask,
+                                position_ids=position_ids, past_key_values=cache,
+                                use_cache=True, return_dict=True)
+            first = first_log_probs[tokens[:, 0]]
+            later = output.logits[:, :-1].float().log_softmax(-1).gather(
+                -1, tokens[:, 1:].unsqueeze(-1),
+            ).squeeze(-1)
+            scores = []
+            for i, length in enumerate(lengths):
+                picked = torch.cat((first[i:i + 1], later[i, :length - 1]))
+                tail = float(picked[1:].mean().item()) if length > 1 else None
+                scores.append((float(picked.mean().item()), length,
+                               float(picked[0].item()), tail))
+            return scores
+
     def style_margin(self, messages: list[dict[str, str]], *, probe_id: str,
                      vector=None, mode="transplant", alpha=1.0,
                      reference=None) -> dict[str, Any]:
         prefix = self._prefix(messages)
         targets = STYLE_COMPLETIONS[probe_id]
-        ordinary, n_plain, ordinary_first, ordinary_tail = self.logprob(
-            messages, targets["plain"], vector=vector, mode=mode, alpha=alpha,
-            prefix=prefix, reference=reference,
+        plain, theatrical = self.score_continuations(
+            messages, [targets["plain"], targets["theatrical"]], vector=vector,
+            mode=mode, alpha=alpha, prefix=prefix, reference=reference,
         )
-        theatrical, n_theatrical, theatrical_first, theatrical_tail = self.logprob(
-            messages, targets["theatrical"], vector=vector, mode=mode,
-            alpha=alpha, prefix=prefix, reference=reference,
-        )
+        return self._style_margin_result(prefix, plain, theatrical)
+
+    @staticmethod
+    def _style_margin_result(prefix, plain, styled) -> dict[str, Any]:
+        ordinary, n_plain, ordinary_first, ordinary_tail = plain
+        theatrical, n_theatrical, theatrical_first, theatrical_tail = styled
         return {
             "margin": theatrical - ordinary,
             "first_token_margin": theatrical_first - ordinary_first,
@@ -425,12 +521,15 @@ class CausalProbe:
         """Genre-specific phrase-sharing theatrical-minus-plain margin for Q3."""
         from .targets import copyable_target
         prefix = self._prefix(messages)
-        plain, _, plain_first, plain_tail = self.logprob(
-            messages, STYLE_COMPLETIONS[probe_id]["plain"], vector=vector, mode=mode,
-            alpha=alpha, prefix=prefix, reference=reference)
-        copyable, _, copyable_first, copyable_tail = self.logprob(
-            messages, copyable_target(genre, probe_id), vector=vector, mode=mode,
-            alpha=alpha, prefix=prefix, reference=reference)
+        plain, copyable = self.score_continuations(
+            messages, [STYLE_COMPLETIONS[probe_id]["plain"], copyable_target(genre, probe_id)],
+            vector=vector, mode=mode, alpha=alpha, prefix=prefix, reference=reference)
+        return self._copyable_margin_result(plain, copyable)
+
+    @staticmethod
+    def _copyable_margin_result(ordinary, styled) -> dict[str, Any]:
+        plain, _, plain_first, plain_tail = ordinary
+        copyable, _, copyable_first, copyable_tail = styled
         return {
             "copyable_margin": copyable - plain,
             "copyable_first_token_margin": copyable_first - plain_first,
@@ -449,14 +548,18 @@ class CausalProbe:
         """
         from .targets import COPY_FREE_TARGETS, REGISTERS
         prefix = self._prefix(messages)
-        plain, _, plain_first, plain_tail = self.logprob(
-            messages, STYLE_COMPLETIONS[probe_id]["plain"], vector=vector, mode=mode,
-            alpha=alpha, prefix=prefix, reference=reference)
+        registers = registers or REGISTERS
+        scores = self.score_continuations(
+            messages, [STYLE_COMPLETIONS[probe_id]["plain"],
+                       *(COPY_FREE_TARGETS[probe_id][r] for r in registers)],
+            vector=vector, mode=mode, alpha=alpha, prefix=prefix, reference=reference)
+        return self._copy_free_margin_result(scores[0], zip(registers, scores[1:]))
+
+    @staticmethod
+    def _copy_free_margin_result(ordinary, scored_registers) -> dict[str, Any]:
+        plain, _, plain_first, plain_tail = ordinary
         by_register = {}
-        for register in registers or REGISTERS:
-            mean, n, first, tail = self.logprob(
-                messages, COPY_FREE_TARGETS[probe_id][register], vector=vector,
-                mode=mode, alpha=alpha, prefix=prefix, reference=reference)
+        for register, (mean, n, first, tail) in scored_registers:
             by_register[register] = {
                 "margin": mean - plain,
                 "first_token_margin": first - plain_first,
@@ -472,6 +575,23 @@ class CausalProbe:
             "copy_free_later_token_margin": (statistics.mean(later)
                                              if None not in later else None),
             "copy_free_by_register": by_register,
+        }
+
+    def all_margins(self, messages: list[dict[str, str]], *, probe_id: str,
+                    genre: str = "gothic", **patch) -> dict[str, Any]:
+        """Score all registered readouts in one shared-prefix batch."""
+        from .targets import COPY_FREE_TARGETS, REGISTERS, copyable_target
+        prefix = patch.pop("prefix", None)
+        prefix = prefix if prefix is not None else self._prefix(messages)
+        targets = STYLE_COMPLETIONS[probe_id]
+        scores = self.score_continuations(
+            messages, [targets["plain"], targets["theatrical"],
+                       *(COPY_FREE_TARGETS[probe_id][r] for r in REGISTERS),
+                       copyable_target(genre, probe_id)], prefix=prefix, **patch)
+        return {
+            **self._style_margin_result(prefix, scores[0], scores[1]),
+            **self._copy_free_margin_result(scores[0], zip(REGISTERS, scores[2:-1])),
+            **self._copyable_margin_result(scores[0], scores[-1]),
         }
 
 
