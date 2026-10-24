@@ -222,6 +222,7 @@ def command_sweep(args: argparse.Namespace) -> None:
         alphas=tuple(float(x.strip()) for x in args.alphas.split(",") if x.strip()),
         source_conditions=tuple(x.strip() for x in args.sources.split(",") if x.strip()),
         reference_condition=args.reference,
+        readout=args.readout, n_nulls=args.n_nulls,
         phases=tuple(x.strip() for x in args.phases.split(",") if x.strip()),
         holdout_fraction=args.holdout_fraction, split_seed=args.split_seed,
         max_total_tokens=args.max_total_tokens,
@@ -244,6 +245,7 @@ def command_sweep_plan(args: argparse.Namespace) -> None:
         alphas=tuple(float(x.strip()) for x in args.alphas.split(",") if x.strip()),
         source_conditions=tuple(x.strip() for x in args.sources.split(",") if x.strip()),
         reference_condition=args.reference,
+        readout=args.readout, n_nulls=args.n_nulls,
         phases=tuple(x.strip() for x in args.phases.split(",") if x.strip()),
         holdout_fraction=args.holdout_fraction,
         split_seed=args.split_seed,
@@ -558,6 +560,9 @@ def make_parser() -> argparse.ArgumentParser:
     sweep.add_argument("--heldout-probes", default="",
                        help="CSV readout IDs excluded from direction training; must be present in JSONL")
     sweep.add_argument("--reference", default="tail_matched")
+    sweep.add_argument("--readout", choices=("style", "copy_free"), default="style")
+    sweep.add_argument("--n-nulls", type=int, default=1,
+                       help="Number of norm-matched orthogonal nulls to average (>=1)")
     sweep.add_argument("--phases", default="exit")
     sweep.add_argument("--holdout-fraction", type=float, default=.4)
     sweep.add_argument("--split-seed", type=int, default=20261022)
@@ -577,6 +582,9 @@ def make_parser() -> argparse.ArgumentParser:
     plan.add_argument("--alphas", default="0,0.5,1")
     plan.add_argument("--sources", default="ordered,neutral")
     plan.add_argument("--reference", default="tail_matched")
+    plan.add_argument("--readout", choices=("style", "copy_free"), default="style")
+    plan.add_argument("--n-nulls", type=int, default=1,
+                      help="Number of norm-matched orthogonal nulls to average (>=1)")
     plan.add_argument("--phases", default="exit")
     plan.add_argument("--heldout-probes", default="")
     plan.add_argument("--holdout-fraction", type=float, default=.4)

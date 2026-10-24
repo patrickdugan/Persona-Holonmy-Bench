@@ -8,7 +8,7 @@ activation-mean differences on *training transcript seeds only* and evaluate:
 2. Necessity-like projection erasure: h_ordered <- h_ordered - alpha
       <h_ordered - mean(h_tail_train), unit(d)> * unit(d).
 
-Each has a norm-matched orthogonal-direction null at the same target token.
+Each is compared with norm-matched orthogonal-direction nulls at the same target token.
 The erasure comparison is calibrated to the *realized* projection magnitude,
 not the norm of the training difference. Outcomes are registered alternative
 continuation log-likelihood margins, split into first and later token terms.
@@ -20,6 +20,7 @@ import json
 import math
 import random
 import statistics
+import struct
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,7 @@ from typing import Any
 from .analysis import _bootstrap_ci
 from .inference import signflip_pvalue, holm_adjust
 from .interventions import (
-    CausalProbe, _orthogonal_random, _read_cases, prepare_pairs, select_block,
+    CausalProbe, STYLE_COMPLETIONS, _orthogonal_random, _read_cases, prepare_pairs, select_block,
     split_seeds,
 )
 
@@ -78,18 +79,27 @@ def _partition_pairs(pairs, *, holdout_fraction: float, split_seed: int,
     return train, test, training, selected, training_probes, eval_probes
 
 
+def _validate_readout_nulls(readout: str, n_nulls: int) -> None:
+    if readout not in ("style", "copy_free"):
+        raise ValueError("readout must be style or copy_free")
+    if isinstance(n_nulls, bool) or not isinstance(n_nulls, int) or n_nulls < 1:
+        raise ValueError("n_nulls must be an integer >= 1")
+
+
 def sweep_plan(*, cases: list[dict[str, Any]], layers: tuple[str, ...],
                alphas: tuple[float, ...], source_conditions: tuple[str, ...],
                reference_condition: str = "tail_matched",
                phases: tuple[str, ...] = ("exit",),
                holdout_fraction: float = .4, split_seed: int = 20261022,
                heldout_probe_ids: tuple[str, ...] = (),
-               self_check: bool = True) -> dict[str, Any]:
+               self_check: bool = True, readout: str = "style",
+               n_nulls: int = 1) -> dict[str, Any]:
     """Offline forward-call count assuming caching in ``run_sweep``.
 
     Invocations differ greatly in token length. The count is not a FLOP, peak
     VRAM, elapsed time, or token count estimate.
     """
+    _validate_readout_nulls(readout, n_nulls)
     if not layers or len(set(layers)) != len(layers):
         raise ValueError("Layers must be nonempty and unique")
     if not alphas or len(set(alphas)) != len(alphas):
@@ -107,16 +117,19 @@ def sweep_plan(*, cases: list[dict[str, Any]], layers: tuple[str, ...],
     if self_check:
         capture_cases.update(base_cases)
     nonzero_alphas = sum(a != 0 for a in alphas)
-    patches_per_layer = len(selected) * 8 * nonzero_alphas
-    identity_per_layer = 2 * len(base_cases) if self_check else 0
+    continuations = 5 if readout == "copy_free" else 2
+    patches_per_layer = len(selected) * 2 * (1 + n_nulls) * continuations * nonzero_alphas
+    identity_per_layer = continuations * len(base_cases) if self_check else 0
     capture_per_layer = len(capture_cases)
-    baseline_all_layers = 2 * len(base_cases)
+    baseline_all_layers = continuations * len(base_cases)
     total_forwards = len(layers) * (
         patches_per_layer + identity_per_layer + capture_per_layer
     ) + baseline_all_layers
     return {
         "schema_version": 1,
         "experiment": "causal_sweep_preflight",
+        "readout": readout,
+        "n_nulls": n_nulls,
         "n_input_cases": len(cases),
         "sources": list(source_conditions),
         "reference_condition": reference_condition,
@@ -172,12 +185,17 @@ def run_sweep(
     self_check: bool = True,
     heldout_probe_ids: tuple[str, ...] = (),
     chat_template_kwargs: dict | None = None,
+    readout: str = "style", n_nulls: int = 1,
 ) -> list[dict[str, Any]]:
     """Evaluate preregistered layers/doses with a single loaded model.
 
     A layer is captured once per distinct case, and baseline scores are reused
     across all layers and doses. All evaluation is restricted to held-out seeds.
+    Copy-free scoring averages four theatrical registers against the plain
+    continuation. Orthogonal rows average ``n_nulls`` independently seeded nulls;
+    null zero and the default style row schema retain their original behavior.
     """
+    _validate_readout_nulls(readout, n_nulls)
     if not layers or not alphas or not phases:
         raise ValueError("Provide at least one layer, alpha and phase")
     if len(set(source_conditions)) != len(source_conditions):
@@ -213,11 +231,39 @@ def run_sweep(
                 activations[key] = runner.capture_vector(case["messages"]).cpu()
             return activations[key]
 
+        def read_margin(case, **patch):
+            if readout == "style":
+                return runner.style_margin(
+                    case["messages"], probe_id=case["probe_id"], **patch)
+            score = runner.copy_free_margin(
+                case["messages"], probe_id=case["probe_id"], **patch)
+            return {
+                **score,
+                "margin": score["copy_free_margin"],
+                "first_token_margin": score["copy_free_first_token_margin"],
+                "later_token_margin": score["copy_free_later_token_margin"],
+            }
+
         def baseline(case):
             key = case["case_id"]
             if key not in baselines:
-                baselines[key] = runner.style_margin(
-                    case["messages"], probe_id=case["probe_id"])
+                score = read_margin(case)
+                if readout == "copy_free":
+                    # Metadata only: no additional model forwards. The theatrical
+                    # token count is averaged across the scored registers.
+                    prefix_ids = runner._prefix(case["messages"])["input_ids"]
+                    score.update({
+                        "plain_tokens": len(tokenizer.encode(
+                            STYLE_COMPLETIONS[case["probe_id"]]["plain"],
+                            add_special_tokens=False)),
+                        "theatrical_tokens": statistics.mean(
+                            r["tokens"] for r in score["copy_free_by_register"].values()),
+                        "prefix_sha256": hashlib.sha256(struct.pack(
+                            f"<{prefix_ids.numel()}q",
+                            *prefix_ids.detach().cpu().reshape(-1).tolist(),
+                        )).hexdigest(),
+                    })
+                baselines[key] = score
             return baselines[key]
 
         directions = {}
@@ -245,8 +291,8 @@ def run_sweep(
                 if check_key not in check_delta:
                     if self_check:
                         own = activation(tested_case)
-                        patched_self = runner.style_margin(
-                            tested_case["messages"], probe_id=tested_case["probe_id"],
+                        patched_self = read_margin(
+                            tested_case,
                             vector=own, mode="transplant", alpha=1.,
                         )
                         check_delta[check_key] = patched_self["margin"] - score["margin"]
@@ -265,32 +311,50 @@ def run_sweep(
                 digest = hashlib.sha256(
                     f"{split_seed}|{block_index}|{condition}|{tested_case['case_id']}|{mode}".encode()
                 ).digest()
-                null_seed = int.from_bytes(digest[:8], "big") % (2**63 - 1)
-                orth = _orthogonal_random(direction, seed=null_seed, torch=runner.torch)
-                if mode == "erase":
-                    # Same per-target shift L2 norm as projection erasure.
-                    null_vector = (-amplitude * orth /
-                                   runner.torch.linalg.vector_norm(orth))
-                else:
-                    null_vector = orth
+                null_vectors = []
+                for null_index in range(n_nulls):
+                    # Keep the original seed exactly for null zero.
+                    indexed_digest = (digest if null_index == 0 else hashlib.sha256(
+                        digest + f"|{null_index}".encode()).digest())
+                    null_seed = int.from_bytes(indexed_digest[:8], "big") % (2**63 - 1)
+                    orth = _orthogonal_random(direction, seed=null_seed, torch=runner.torch)
+                    if mode == "erase":
+                        # Same per-target shift L2 norm as projection erasure.
+                        null_vector = (-amplitude * orth /
+                                       runner.torch.linalg.vector_norm(orth))
+                    else:
+                        null_vector = orth
+                    null_vectors.append(null_vector)
 
                 for alpha in alphas:
                     for control in ("candidate", "orthogonal"):
+                        null_scores = []
                         if alpha == 0:
                             patched = score
+                            if control == "orthogonal":
+                                null_scores = [score] * n_nulls
                         elif control == "candidate":
-                            patched = runner.style_margin(
-                                tested_case["messages"], probe_id=tested_case["probe_id"],
+                            patched = read_margin(
+                                tested_case,
                                 alpha=alpha, **intervention,
                             )
                         else:
-                            patched = runner.style_margin(
-                                tested_case["messages"], probe_id=tested_case["probe_id"],
-                                vector=null_vector, mode="add", alpha=alpha,
-                            )
+                            null_scores = [read_margin(
+                                tested_case, vector=vector, mode="add", alpha=alpha,
+                            ) for vector in null_vectors]
+                            patched = null_scores[0]
                         effect = patched["margin"] - score["margin"]
                         first_delta = _safe_delta(patched, score, "first_token_margin")
                         later_delta = _safe_delta(patched, score, "later_token_margin")
+                        null_effects = [s["margin"] - score["margin"] for s in null_scores]
+                        if control == "orthogonal" and n_nulls > 1:
+                            patched = {"margin": statistics.mean(s["margin"] for s in null_scores)}
+                            effect = statistics.mean(null_effects)
+                            deltas = [[_safe_delta(s, score, field) for s in null_scores]
+                                      for field in ("first_token_margin", "later_token_margin")]
+                            first_delta, later_delta = [
+                                statistics.mean(values) if None not in values else None
+                                for values in deltas]
                         results.append({
                             **({"chat_template_kwargs": chat_template_kwargs}
                                if chat_template_kwargs is not None else {}),
@@ -331,6 +395,9 @@ def run_sweep(
                             "plain_tokens": score["plain_tokens"],
                             "theatrical_tokens": score["theatrical_tokens"],
                             "prefix_sha256": score["prefix_sha256"],
+                            **({"readout": readout} if readout != "style" else {}),
+                            **({"null_effects": null_effects, "n_nulls": n_nulls}
+                               if control == "orthogonal" and n_nulls > 1 else {}),
                         })
     return results
 
@@ -339,6 +406,10 @@ def sweep_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Descriptive seed-clustered contrasts, pairing every candidate with null."""
     if not rows:
         raise ValueError("Empty sweep")
+    readouts = {r.get("readout", "style") for r in rows}
+    if len(readouts) != 1:
+        raise ValueError("Sweep report cannot mix readouts")
+    readout = next(iter(readouts))
     identity = {(r["model"], r["tokenizer"], r["reference_condition"]) for r in rows}
     if len(identity) != 1:
         raise ValueError("Sweep report requires one model, tokenizer and reference condition")
@@ -425,6 +496,7 @@ def sweep_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "schema_version": 2,
         "model": model_name,
+        **({"readout": readout} if readout != "style" else {}),
         "tokenizer": tokenizer_name,
         "reference_condition": ref,
         "layers": sorted({r["layer"] for r in rows}),
@@ -461,6 +533,7 @@ def sweep_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def sweep_markdown(report: dict[str, Any]) -> str:
     text = ["# Persona Holonomy Bench: causal layer sweep", "",
             f"Model: `{report['model']}`; reference: `{report['reference_condition']}`",
+            *([f"Readout: `{report['readout']}`"] if "readout" in report else []),
             f"Layers: {report['layers']}; strengths: {report['alphas']}",
             f"Training seeds: {report['n_training_seeds']}; held-out: {report['n_test_seeds']}",
             f"Train probes: {report['training_probe_ids']}; evaluation probes: {report['evaluation_probe_ids']}; probe holdout: {report['probe_holdout']}",
@@ -490,9 +563,11 @@ def sweep_hf(
     *, input_path: str, output_path: str, model_name: str,
     device: str = "auto", dtype: str = "auto", allow_download: bool = False,
     trust_remote_code: bool = False, chat_template_kwargs: dict | None = None,
+    readout: str = "style", n_nulls: int = 1,
     **kwargs,
 ) -> int:
     """Opt-in local model load. Requires no network by default."""
+    _validate_readout_nulls(readout, n_nulls)
     try:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -514,6 +589,7 @@ def sweep_hf(
         **load_kwargs).to(device)
     rows = run_sweep(cases=_read_cases(input_path), model=model, tokenizer=tokenizer,
                      model_name=model_name, device=device,
+                     readout=readout, n_nulls=n_nulls,
                      chat_template_kwargs=chat_template_kwargs, **kwargs)
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
