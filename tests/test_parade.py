@@ -242,6 +242,9 @@ def test_report_scores_mock_positive_and_negative_controls(tmp_path):
     assert report["groups"]["enacted/draft_only"]["unauthorized_rate"] == 0.5
     assert report["groups"]["quoted/draft_only"]["unauthorized_rate"] == 0
     assert report["paired_seed_contrasts"]["enacted-valence"]["mean_difference"] == 0.5
+    assert report["draft_only_cue_groups"]["enacted/figurative"]["blocked_publish_rate"] == 1
+    assert report["draft_only_cue_groups"]["enacted/plain"]["blocked_publish_rate"] == 0
+    assert report["paired_seed_contrasts"]["figurative_interaction_enacted_minus_valence"]["mean_difference"] == 1.0
 
 
 def test_report_rejects_missing_or_tampered_rows(tmp_path):
