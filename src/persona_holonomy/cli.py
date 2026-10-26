@@ -360,6 +360,7 @@ def command_perc_holonomy(args: argparse.Namespace) -> None:
                                 layer=args.layer,
                                 conditions=tuple(x.strip() for x in args.conditions.split(',')),
                                 phases=tuple(x.strip() for x in args.phases.split(',')),
+                                phase_edge_kind=args.phase_edge_kind,
                                 rank=args.rank, min_overlap=args.min_overlap,
                                 epsilon=args.epsilon, seed=args.seed,
                                 null_shuffles=args.null_shuffles)
@@ -483,6 +484,44 @@ def command_pilot_stage(args: argparse.Namespace) -> None:
     result = run_stage(plan_path=args.plan, stage=args.stage,
                        device=args.device, dtype=args.dtype)
     print(f"Pilot {args.stage}: {result['status']}")
+
+
+
+def command_parade_plan(args: argparse.Namespace) -> None:
+    from .parade import plan_pilot
+    report = plan_pilot(args.output_dir, first_seed=args.first_seed,
+                        repetitions=args.repetitions, domains=args.domains,
+                        max_steps=args.max_steps)
+    print(f"Parade offline exploratory plan: {report['n_cases']} cases, "
+          f"hash {report['cases_sha256']} (no model calls)")
+
+
+def command_parade_run(args: argparse.Namespace) -> None:
+    from .parade import run_plan
+    n = run_plan(args.plan, args.output, backend_name=args.backend,
+                 model=args.model, base_url=args.base_url,
+                 execution_seed=args.execution_seed, max_tokens=args.max_tokens)
+    print(f"Parade: {n} simulated tool episodes saved at {args.output}")
+    if args.backend.startswith("mock-"):
+        print("SYNTHETIC TOOL POLICY. These are not model measurements.")
+
+
+def command_parade_report(args: argparse.Namespace) -> None:
+    from .parade import report_run
+    report = report_run(args.plan, args.input)
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("x", encoding="utf-8") as fh:
+        fh.write(json.dumps(report, indent=2) + "\n")
+    print(f"Parade report: {report['n_cases']} cases, {report['scientific_status']}; {output}")
+
+
+def command_parade_frame_export(args: argparse.Namespace) -> None:
+    from .parade import export_frame_cases
+    report = export_frame_cases(args.plan, args.output)
+    print(f"Exported {report['n_cases']} matched Parade frame-capture cases "
+          f"({report['n_independent_seeds']} seed clusters); "
+          "no pretrained model inference")
 
 
 def make_parser() -> argparse.ArgumentParser:
@@ -719,6 +758,8 @@ def make_parser() -> argparse.ArgumentParser:
     perc_h.add_argument("--layer", default="hs_8", help="One hidden-state index, e.g. hs_8")
     perc_h.add_argument("--conditions", default="ordered,tail_matched")
     perc_h.add_argument("--phases", default="peak,exit,washout_2")
+    perc_h.add_argument("--phase-edge-kind", choices=("time_adjacent", "cue_adjacent"),
+                        default="time_adjacent")
     perc_h.add_argument("--rank", type=int, default=2)
     perc_h.add_argument("--min-overlap", type=float, default=0.1)
     perc_h.add_argument("--epsilon", type=float, default=0.05)
@@ -856,6 +897,40 @@ def make_parser() -> argparse.ArgumentParser:
     for cmd in (cap, inv, sweep, freegen, comp, sae_cap, attr, pilot):
         cmd.add_argument("--no-thinking", action="store_true",
                          help="Render the chat template with enable_thinking=False")
+
+    from .parade import DOMAINS
+    pplan = sub.add_parser("parade-plan", help="Offline Parade ontology / authority pilot manifest")
+    pplan.add_argument("--output-dir", required=True)
+    pplan.add_argument("--first-seed", type=int, default=30000)
+    pplan.add_argument("--repetitions", type=int, default=4)
+    pplan.add_argument("--domains", type=lambda x: _csv(x, DOMAINS, "Parade domain"),
+                       default=("event_memo", "data_release"))
+    pplan.add_argument("--max-steps", type=int, default=7)
+    pplan.set_defaults(func=command_parade_plan)
+
+    prun = sub.add_parser("parade-run", help="Run fail-closed simulated-tool episodes")
+    prun.add_argument("--plan", required=True)
+    prun.add_argument("--output", required=True)
+    prun.add_argument("--backend",
+                      choices=("mock-policy", "mock-violator", "mock-ontology",
+                               "ollama", "openai-compatible"), default="mock-policy")
+    prun.add_argument("--model", default=None)
+    prun.add_argument("--base-url", default=None, help="Only HTTP loopback URLs accepted")
+    prun.add_argument("--execution-seed", type=int, default=1729)
+    prun.add_argument("--max-tokens", type=int, default=256)
+    prun.set_defaults(func=command_parade_run)
+
+    preport = sub.add_parser("parade-report", help="Audit Parade tool logs and paired pilot rates")
+    preport.add_argument("--plan", required=True)
+    preport.add_argument("--input", required=True)
+    preport.add_argument("--output", required=True)
+    preport.set_defaults(func=command_parade_report)
+
+    pf = sub.add_parser("parade-frame-export",
+                        help="Export Parade 2x2 contexts for PHB capture/PercInterp")
+    pf.add_argument("--plan", required=True)
+    pf.add_argument("--output", required=True)
+    pf.set_defaults(func=command_parade_frame_export)
 
     return parser
 

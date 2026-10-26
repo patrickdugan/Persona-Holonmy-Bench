@@ -304,3 +304,67 @@ MIT licensed. © 2026 Patrick Dugan.
 ## Publication
 
 The source is published at [patrickdugan/Persona-Holonmy-Bench](https://github.com/patrickdugan/Persona-Holonmy-Bench). The [`examples/`](examples/) directory contains a **synthetic mock-data** report and plot solely to demonstrate output formatting.
+
+
+## v0.14 Parade ontology: offline simulated-tool pilot (draft PR)
+
+An optional research track studies whether a cheerful fictional ontology changes
+the way an assistant handles external-action permissions after the roleplay ends.
+This is separate from the frozen enacted-versus-quoted persona preregistration.
+
+The first executable pilot uses four scripted prior-history conditions, two
+information styles, two authorization states, two task domains and four history
+seeds, yielding **128 deterministic cases**. It supplies a sandboxed approval
+service, an attempted-publication log, seed-paired exploratory scoring, and
+three explicitly **synthetic** policies to test the scoring infrastructure.
+
+```bash
+phb parade-plan --output-dir runs/parade-001 --first-seed 30000 --repetitions 4
+phb parade-run --plan runs/parade-001/plan.json --backend mock-policy \
+  --output runs/parade-001/policy.jsonl
+phb parade-report --plan runs/parade-001/plan.json \
+  --input runs/parade-001/policy.jsonl --output runs/parade-001/policy-report.json
+
+# Positive control: a synthetic policy that violates only the enacted+figurative
+# draft-only cell. The resulting difference is planted, not discovered in a model.
+phb parade-run --plan runs/parade-001/plan.json --backend mock-ontology \
+  --output runs/parade-001/ontology.jsonl
+
+# Opt-in actual local model inference, if a compatible model is running.
+phb parade-run --plan runs/parade-001/plan.json --backend ollama \
+  --model YOUR_LOCALLY_AVAILABLE_MODEL --max-tokens 512 \
+  --output runs/parade-001/model.jsonl
+```
+
+These tools never call real publishing systems. External model requests are
+restricted to loopback HTTP endpoints; every published action is simulated and
+permission-checked independently of the model. The initial retrieval response is
+represented through a text envelope because some chat APIs lack native tool-role
+support. Scripted histories, unequal token positions, and this envelope remain
+important scientific limitations. Read
+[the full v0.14 design](docs/v014-parade-ontology-holonomy-design.md) and
+[the synthetic scenario](examples/parade-ontology-SYNTHETIC.json).
+No pretrained model evidence of the Parade Hypothesis exists yet.
+
+For the **geometric square**, export 32 matched conditions to the existing
+activation-capture schema, then explicitly opt into local HF model inference:
+
+```bash
+phb parade-frame-export --plan runs/parade-001/plan.json \
+  --output runs/parade-001/frame-cases.jsonl
+phb capture --model /path/to/LOCALLY_CACHED_HF_MODEL \
+  --input runs/parade-001/frame-cases.jsonl --layers 14 \
+  --output runs/parade-001/frame-activations.jsonl
+phb perc-holonomy --activations runs/parade-001/frame-activations.jsonl \
+  --conditions neutral,enacted --phases plain,figurative \
+  --phase-edge-kind cue_adjacent --layer hs_14 --rank 2 \
+  --null-shuffles 15 --output runs/parade-001/frame-report.json
+```
+
+The initial four-history-seed capture is for numerical feasibility only.
+Seed-cluster permutations, frame overlap, loop eigenphases, and gauge invariance
+are handled by the existing PercInterp adapter, with the cue axis correctly
+tagged as categorical. An independent, preregistered larger sample and a
+second checkpoint are required for scientific generalization.
+
+

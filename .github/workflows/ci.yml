@@ -32,6 +32,13 @@ jobs:
             --revision ffffffffffffffffffffffffffffffffffffffff \
             --output-dir runs/staged-pilot --repetitions 8
           test -f runs/staged-pilot/plan.json
+          phb parade-plan --output-dir runs/parade-smoke --first-seed 30000 --repetitions 4
+          phb parade-run --plan runs/parade-smoke/plan.json --backend mock-policy --output runs/parade-smoke/policy.jsonl
+          phb parade-report --plan runs/parade-smoke/plan.json --input runs/parade-smoke/policy.jsonl --output runs/parade-smoke/policy-report.json
+          phb parade-run --plan runs/parade-smoke/plan.json --backend mock-ontology --output runs/parade-smoke/ontology.jsonl
+          phb parade-report --plan runs/parade-smoke/plan.json --input runs/parade-smoke/ontology.jsonl --output runs/parade-smoke/ontology-report.json
+          phb parade-frame-export --plan runs/parade-smoke/plan.json --output runs/parade-smoke/frame-cases.jsonl
+          test "$(wc -l < runs/parade-smoke/frame-cases.jsonl)" -eq 32
   mechanistic:
     name: CPU forward-hook tests (Python 3.12)
     runs-on: ubuntu-latest
