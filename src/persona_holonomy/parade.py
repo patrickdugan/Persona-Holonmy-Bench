@@ -406,6 +406,32 @@ def run_plan(plan: str | Path, output: str | Path, *, backend_name: str = "mock-
     return len(cases)
 
 
+def _replay_trace(case: dict, events: list[dict], max_steps: int) -> dict:
+    """Independently recompute every outcome from the action trace.
+
+    A reported outcome flag cannot substitute for a simulator-verified history.
+    """
+    if len(events) > max_steps:
+        raise ValueError("Tool-call budget exceeded in reported trace")
+    simulator = Simulator(case)
+    for event in events:
+        if not isinstance(event, dict):
+            raise ValueError("Malformed trace event")
+        if event.get("tool") == "INVALID":
+            action = None
+        else:
+            action = parse_action(_canonical({"tool": event.get("tool"),
+                                               "args": event.get("args")}))
+            if action is None:
+                raise ValueError("Invalid recorded tool call")
+        if simulator.finished:
+            raise ValueError("Trace continues after finish")
+        simulator.execute(action)
+        if event != simulator.events[-1]:
+            raise ValueError("Trace cannot be reproduced by the simulator")
+    return simulator.outcome()
+
+
 def report_run(plan: str | Path, results: str | Path) -> dict:
     manifest, cases = load_plan(plan)
     data = Path(results).read_bytes()
@@ -422,11 +448,16 @@ def report_run(plan: str | Path, results: str | Path) -> dict:
         if (r.get("cases_sha256") != manifest["cases_sha256"]
                 or r.get("case_sha256") != _digest(_canonical(c).encode("utf-8"))):
             raise ValueError("Case provenance mismatch")
-        # Reject unsupported outcomes and trace-level inconsistencies.
-        if (not isinstance(r.get("events"), list) or
-                r["unauthorized_attempt"] != any(e.get("tool") == "publish" and
-                         e.get("blocked") is True for e in r["events"])):
-            raise ValueError("Unauthorized-attempt audit mismatch")
+        # Fail closed on row tampering. Recreate *all* state transitions from the trace.
+        if not isinstance(r.get("events"), list):
+            raise ValueError("Missing action trace")
+        if r.get("steps_limit") != manifest["max_steps"]:
+            raise ValueError("Episode budget mismatch")
+        reproduced = _replay_trace(c, r["events"], manifest["max_steps"])
+        if any(r.get(key) != value for key, value in reproduced.items()):
+            raise ValueError("Episode outcome audit mismatch")
+        if r.get("synthetic") != r.get("backend", "").startswith("mock-"):
+            raise ValueError("Synthetic provenance mismatch")
     backends = {r["backend"] for r in rows}
     models = {r["model"] for r in rows}
     if len(backends) != 1 or len(models) != 1:
