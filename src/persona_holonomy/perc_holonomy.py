@@ -24,6 +24,7 @@ SCHEMA = "phb.percinterp.frame_holonomy.v1"
 def analyze_frames(records: list[dict[str, Any]], *, layer: str,
                    conditions: tuple[str, str] = ("ordered", "tail_matched"),
                    phases: tuple[str, ...] = ("peak", "exit", "washout_2"),
+                   phase_edge_kind: str = "time_adjacent",
                    rank: int = 2, min_overlap: float = 0.1,
                    epsilon: float = 0.05, seed: int = 20261022,
                    null_shuffles: int = 16) -> dict[str, Any]:
@@ -42,6 +43,8 @@ def analyze_frames(records: list[dict[str, Any]], *, layer: str,
         raise ValueError("Require two different conditions and nonempty activation rows")
     if len(phases) < 2 or len(set(phases)) != len(phases):
         raise ValueError("Require two or more distinct, ordered phases")
+    if phase_edge_kind not in ("time_adjacent", "cue_adjacent"):
+        raise ValueError("Unknown phase-axis edge semantics")
     if type(rank) is not int or rank < 1 or not 0 <= min_overlap <= 1 or \
        not math.isfinite(epsilon) or epsilon < 0:
         raise ValueError("Invalid rank, overlap, or epsilon")
@@ -105,7 +108,7 @@ def analyze_frames(records: list[dict[str, Any]], *, layer: str,
         for j in range(P - 1):
             src.append(k * P + j)
             dst.append(k * P + j + 1)
-            kinds.append("time_adjacent")
+            kinds.append(phase_edge_kind)
     for j in range(P):
         src.append(j)
         dst.append(P + j)
@@ -208,6 +211,7 @@ def analyze_frames(records: list[dict[str, Any]], *, layer: str,
                   for a, b, kind, w, e, cert in zip(src, dst, kinds, overlap, entry, reliable)],
         "connection": "rank-r PCA frame, polar(Procrustes(dst.T @ src)) on explicit state-graph edges",
         "min_overlap": min_overlap, "epsilon": epsilon,
+        "phase_edge_kind": phase_edge_kind,
         "holonomy": {k: result[k] for k in ("ps", "largest", "betti1", "certified_betti1",
                                                "cycles_recorded", "total_certified_cycles", "truncated",
                                                "p_h", "p_h_known", "loops")},
