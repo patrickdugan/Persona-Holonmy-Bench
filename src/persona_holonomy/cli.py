@@ -515,6 +515,14 @@ def command_parade_report(args: argparse.Namespace) -> None:
     print(f"Parade report: {report['n_cases']} cases, {report['scientific_status']}; {output}")
 
 
+def command_parade_frame_export(args: argparse.Namespace) -> None:
+    from .parade import export_frame_cases
+    report = export_frame_cases(args.plan, args.output)
+    print(f"Exported {report['n_cases']} matched Parade frame-capture cases "
+          f"({report['n_independent_seeds']} seed clusters); "
+          "no pretrained model inference")
+
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="phb", description=f"Persona Holonomy Bench, version {__version__}"
@@ -914,6 +922,12 @@ def make_parser() -> argparse.ArgumentParser:
     preport.add_argument("--input", required=True)
     preport.add_argument("--output", required=True)
     preport.set_defaults(func=command_parade_report)
+
+    pf = sub.add_parser("parade-frame-export",
+                        help="Export Parade 2x2 contexts for PHB capture/PercInterp")
+    pf.add_argument("--plan", required=True)
+    pf.add_argument("--output", required=True)
+    pf.set_defaults(func=command_parade_frame_export)
 
     return parser
 
