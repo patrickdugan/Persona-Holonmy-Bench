@@ -345,3 +345,26 @@ important scientific limitations. Read
 [the full v0.14 design](docs/v014-parade-ontology-holonomy-design.md) and
 [the synthetic scenario](examples/parade-ontology-SYNTHETIC.json).
 No pretrained model evidence of the Parade Hypothesis exists yet.
+
+For the **geometric square**, export 32 matched conditions to the existing
+activation-capture schema, then explicitly opt into local HF model inference:
+
+```bash
+phb parade-frame-export --plan runs/parade-001/plan.json \
+  --output runs/parade-001/frame-cases.jsonl
+phb capture --model /path/to/LOCALLY_CACHED_HF_MODEL \
+  --input runs/parade-001/frame-cases.jsonl --layers 14 \
+  --output runs/parade-001/frame-activations.jsonl
+phb perc-holonomy --activations runs/parade-001/frame-activations.jsonl \
+  --conditions neutral,enacted --phases plain,figurative \
+  --phase-edge-kind cue_adjacent --layer hs_14 --rank 2 \
+  --null-shuffles 15 --output runs/parade-001/frame-report.json
+```
+
+The initial four-history-seed capture is for numerical feasibility only.
+Seed-cluster permutations, frame overlap, loop eigenphases, and gauge invariance
+are handled by the existing PercInterp adapter, with the cue axis correctly
+tagged as categorical. An independent, preregistered larger sample and a
+second checkpoint are required for scientific generalization.
+
+
