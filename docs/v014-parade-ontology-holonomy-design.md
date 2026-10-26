@@ -122,6 +122,28 @@ Evaluate ranks 2 and 4 only where the frames and overlaps are well supported. Th
 
 This is a holonomy of an explicitly CHOSEN REPRESENTATIONAL CONNECTION estimated from model activations. It is not proof that the model stores a rotating, self-aware persona or literally traverses the context graph between calls.
 
+### Implemented offline bridge (experimental, no model run)
+
+The v0.14 pilot exports **32** complete frames from the default 128-case plan:
+neutral/enacted × plain/figurative × 4 independent seeds × 2 domains, holding
+authorization at draft-only. Each frame-export row includes the scripted messages,
+PHB capture schema fields, and the pinned plan hash. The existing optional
+HF hidden-state capture computes last-prefix-token activations, with no weight
+download unless explicitly opted into by the operator.
+
+For this categorical 2×2 design, the PHB conditions become
+neutral/enacted and its phase axis becomes plain/figurative. Use
+`--phase-edge-kind cue_adjacent` in the existing PercInterp analyzer so
+the result does not mislabel data-style changes as chronology. The resulting
+four-node state graph has one square. The output records spectral and
+Frobenius loop invariants, certified edge overlaps, and whole-history-seed
+condition-label nulls, reusing v0.9 provenance and gauge controls.
+
+**The four-seed default has inadequate null resolution**. This export validates
+plumbing and frame rank on a locally supplied model. A proper geometric study
+must freeze at least 32 fresh history seeds, set overlap thresholds and rank
+before activation inspection, and replicate the result on a distinct checkpoint.
+
 ## 6. Causal transport test
 
 Only after the geometric and behavioral pilots meet their independent gates:
