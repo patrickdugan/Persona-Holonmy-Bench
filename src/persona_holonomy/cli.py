@@ -360,6 +360,7 @@ def command_perc_holonomy(args: argparse.Namespace) -> None:
                                 layer=args.layer,
                                 conditions=tuple(x.strip() for x in args.conditions.split(',')),
                                 phases=tuple(x.strip() for x in args.phases.split(',')),
+                                phase_edge_kind=args.phase_edge_kind,
                                 rank=args.rank, min_overlap=args.min_overlap,
                                 epsilon=args.epsilon, seed=args.seed,
                                 null_shuffles=args.null_shuffles)
@@ -757,6 +758,8 @@ def make_parser() -> argparse.ArgumentParser:
     perc_h.add_argument("--layer", default="hs_8", help="One hidden-state index, e.g. hs_8")
     perc_h.add_argument("--conditions", default="ordered,tail_matched")
     perc_h.add_argument("--phases", default="peak,exit,washout_2")
+    perc_h.add_argument("--phase-edge-kind", choices=("time_adjacent", "cue_adjacent"),
+                        default="time_adjacent")
     perc_h.add_argument("--rank", type=int, default=2)
     perc_h.add_argument("--min-overlap", type=float, default=0.1)
     perc_h.add_argument("--epsilon", type=float, default=0.05)
