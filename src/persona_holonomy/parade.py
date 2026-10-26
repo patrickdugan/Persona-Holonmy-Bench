@@ -368,6 +368,52 @@ def load_plan(path: str | Path) -> tuple[dict, list[dict]]:
     return manifest, cases
 
 
+def export_frame_cases(plan: str | Path, output: str | Path) -> dict:
+    """Export 2x2 matched contexts for existing PHB capture/PercInterp.
+
+    condition = persona axis (neutral or enacted)
+    phase = retrieved-data axis (plain or figurative)
+    probe_id = paired synthetic domain, seed = independent history unit.
+    No HF checkpoint is loaded. Both axes are categorical, not chronological.
+    """
+    manifest, cases = load_plan(plan)
+    selected = [c for c in cases if c["authority"] == "draft_only"
+                and c["arm"] in ("neutral", "enacted")]
+    expected = manifest["repetitions"] * len(manifest["domains"]) * 4
+    if len(selected) != expected:
+        raise ValueError("Frame square requires complete neutral/enacted x plain/figurative cells")
+    grouped = defaultdict(set)
+    for c in selected:
+        grouped[(c["seed"], c["domain"])].add((c["arm"], c["cue"]))
+    square = {(a, c) for a in ("neutral", "enacted") for c in CUES}
+    if any(values != square for values in grouped.values()):
+        raise ValueError("Incomplete or duplicate geometric frame square")
+    rows = [{
+        "schema_version": 1,
+        "experiment": "parade_frame_square_exploratory",
+        "case_id": c["case_id"],
+        "condition": c["arm"], "phase": c["cue"], "seed": c["seed"],
+        "probe_id": c["domain"],
+        "messages": initial_messages(c),
+        "cases_sha256": manifest["cases_sha256"],
+        "model_inference": False,
+    } for c in sorted(selected, key=lambda z: (z["seed"], z["domain"], z["arm"], z["cue"]))]
+    content = "".join(_canonical(row) + "\n" for row in rows)
+    target = Path(output)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("x", encoding="utf-8") as file:
+        file.write(content)
+    return {
+        "n_cases": len(rows), "n_independent_seeds": manifest["repetitions"],
+        "cases_sha256": manifest["cases_sha256"],
+        "frame_input_sha256": _digest(content.encode("utf-8")),
+        "status": "scripted_capture_input_only",
+        "axis_condition": ["neutral", "enacted"],
+        "axis_phase": ["plain", "figurative"],
+        "phase_axis_is_temporal": False,
+    }
+
+
 def _local_endpoint_only(base_url: str | None) -> None:
     if base_url is None:
         return
