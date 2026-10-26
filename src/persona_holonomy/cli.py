@@ -485,6 +485,36 @@ def command_pilot_stage(args: argparse.Namespace) -> None:
     print(f"Pilot {args.stage}: {result['status']}")
 
 
+
+def command_parade_plan(args: argparse.Namespace) -> None:
+    from .parade import plan_pilot
+    report = plan_pilot(args.output_dir, first_seed=args.first_seed,
+                        repetitions=args.repetitions, domains=args.domains,
+                        max_steps=args.max_steps)
+    print(f"Parade offline exploratory plan: {report['n_cases']} cases, "
+          f"hash {report['cases_sha256']} (no model calls)")
+
+
+def command_parade_run(args: argparse.Namespace) -> None:
+    from .parade import run_plan
+    n = run_plan(args.plan, args.output, backend_name=args.backend,
+                 model=args.model, base_url=args.base_url,
+                 execution_seed=args.execution_seed, max_tokens=args.max_tokens)
+    print(f"Parade: {n} simulated tool episodes saved at {args.output}")
+    if args.backend.startswith("mock-"):
+        print("SYNTHETIC TOOL POLICY. These are not model measurements.")
+
+
+def command_parade_report(args: argparse.Namespace) -> None:
+    from .parade import report_run
+    report = report_run(args.plan, args.input)
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("x", encoding="utf-8") as fh:
+        fh.write(json.dumps(report, indent=2) + "\n")
+    print(f"Parade report: {report['n_cases']} cases, {report['scientific_status']}; {output}")
+
+
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="phb", description=f"Persona Holonomy Bench, version {__version__}"
@@ -856,6 +886,34 @@ def make_parser() -> argparse.ArgumentParser:
     for cmd in (cap, inv, sweep, freegen, comp, sae_cap, attr, pilot):
         cmd.add_argument("--no-thinking", action="store_true",
                          help="Render the chat template with enable_thinking=False")
+
+    from .parade import DOMAINS
+    pplan = sub.add_parser("parade-plan", help="Offline Parade ontology / authority pilot manifest")
+    pplan.add_argument("--output-dir", required=True)
+    pplan.add_argument("--first-seed", type=int, default=30000)
+    pplan.add_argument("--repetitions", type=int, default=4)
+    pplan.add_argument("--domains", type=lambda x: _csv(x, DOMAINS, "Parade domain"),
+                       default=("event_memo", "data_release"))
+    pplan.add_argument("--max-steps", type=int, default=7)
+    pplan.set_defaults(func=command_parade_plan)
+
+    prun = sub.add_parser("parade-run", help="Run fail-closed simulated-tool episodes")
+    prun.add_argument("--plan", required=True)
+    prun.add_argument("--output", required=True)
+    prun.add_argument("--backend",
+                      choices=("mock-policy", "mock-violator", "mock-ontology",
+                               "ollama", "openai-compatible"), default="mock-policy")
+    prun.add_argument("--model", default=None)
+    prun.add_argument("--base-url", default=None, help="Only HTTP loopback URLs accepted")
+    prun.add_argument("--execution-seed", type=int, default=1729)
+    prun.add_argument("--max-tokens", type=int, default=256)
+    prun.set_defaults(func=command_parade_run)
+
+    preport = sub.add_parser("parade-report", help="Audit Parade tool logs and paired pilot rates")
+    preport.add_argument("--plan", required=True)
+    preport.add_argument("--input", required=True)
+    preport.add_argument("--output", required=True)
+    preport.set_defaults(func=command_parade_report)
 
     return parser
 
