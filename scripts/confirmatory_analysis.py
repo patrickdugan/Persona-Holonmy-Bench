@@ -116,6 +116,42 @@ def q5_rates(path: Path) -> dict | None:
             "total_samples": sum(r["n_samples"] for r in rows)}
 
 
+def per_probe(rows: list[dict] | None, *, metric: str = "copy_free_margin",
+              phase: str = "exit", variant: str = "default") -> dict | None:
+    """Exploratory: estimands per probe family, averaged over genres and seeds."""
+    if not rows:
+        return None
+    c = {(r["genre"], r["seed"], r["probe_id"], r["condition"]): r[metric] for r in rows
+         if r["phase"] == phase and r["system_variant"] == variant}
+    out = {}
+    for probe in sorted({k[2] for k in c}):
+        keys = sorted({k[:2] for k in c if k[2] == probe})
+        vals = {"R": [], "L": [], "F": [], "P": []}
+        for g, s in keys:
+            v = {cond: c[(g, s, probe, cond)] for cond in
+                 ("ordered", "neutral", "lexical_match", "lexical_neutral")}
+            vals["R"].append(v["ordered"] - v["neutral"])
+            vals["L"].append(v["lexical_match"] - v["lexical_neutral"])
+            vals["F"].append(v["lexical_neutral"] - v["neutral"])
+            vals["P"].append(vals["R"][-1] - vals["L"][-1])
+        out[probe] = {k: statistics.mean(v) for k, v in vals.items()}
+    return out
+
+
+def item_level(tables: dict[str, dict]) -> dict:
+    """Probe family as the unit: sign-flip over families, and cross-model agreement."""
+    out = {}
+    for name, table in tables.items():
+        if table:
+            out[name] = {e: summarize_values([v[e] for v in table.values()]) for e in "RLFP"}
+    a, b = tables.get("4b_confirmatory"), tables.get("17b_confirmatory")
+    if a and b:
+        common = sorted(set(a) & set(b))
+        xs, ys = [a[p]["P"] for p in common], [b[p]["P"] for p in common]
+        out["P_cross_model_pearson"] = statistics.correlation(xs, ys) if len(common) > 2 else None
+    return out
+
+
 def figures(results: dict) -> list[str]:
     try:
         import matplotlib
@@ -218,6 +254,17 @@ def main() -> None:
         results["gates"]["length_17b"] = length_gate(main17)
         results["17b_decomposition"] = decompose(main17, copy_metric="copyable_margin")
     results["q5"] = q5_rates(RUN / "q5-sample.jsonl") if (RUN / "q5-sample.done").exists() else None
+    cal = []
+    for g in GENRES:
+        path = ROOT / "reports" / "cal9200" / g / "rows.jsonl"
+        if path.exists():
+            cal += [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+    tables = {"4b_confirmatory": per_probe(main4), "17b_confirmatory": per_probe(main17),
+              "4b_calibration_9200": per_probe(cal or None),
+              "4b_origprobes_confirmatory_seeds": per_probe(
+                  rows_of(*(f"x-4b-origprobes-{g}" for g in GENRES)))}
+    results["exploratory_per_probe"] = tables
+    results["exploratory_item_level"] = item_level(tables)
     results["figures"] = figures(results)
     (REPORT / "confirmatory.json").write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
 
@@ -268,6 +315,26 @@ def main() -> None:
             lines.append(f"| {key} | {v['genre_intrusion_rate']:.3f} | {v['theatrical_rate']:.3f} |")
         for name, x in q5["theatrical_rate_contrasts"].items():
             lines.append(f"\nTheatrical-rate contrast {name}: {cell(x)}")
+    lines += ["", "## Exploratory (not preregistered): probe family as the unit", "",
+              "Seed-level tests treat the probe families as fixed. Below, each family is one "
+              "unit (values averaged over genres and seeds; exit, default system).", ""]
+    for name, table in results["exploratory_per_probe"].items():
+        if not table:
+            lines += [f"- {name}: missing", ""]
+            continue
+        lines += [f"**{name}**", "", "| probe family | R | L | F | P |", "|---|---|---|---|---|"]
+        for probe, v in table.items():
+            lines.append(f"| {probe} | {v['R']:+.3f} | {v['L']:+.3f} | {v['F']:+.3f} | {v['P']:+.3f} |")
+        item = results["exploratory_item_level"].get(name)
+        if item:
+            lines.append("")
+            lines.append("Across families: " + "; ".join(
+                f"{e} mean {item[e]['mean']:+.3f}, {item[e]['positive_seeds']}/{item[e]['n_seeds']} "
+                f"families > 0, sign-flip p = {item[e]['signflip']['p_value']:.2g}" for e in "LP"))
+        lines.append("")
+    r = results["exploratory_item_level"].get("P_cross_model_pearson")
+    if r is not None:
+        lines.append(f"Per-family P, 4B vs 1.7B: Pearson r = {r:+.2f} over the six families.")
     (REPORT / "confirmatory.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Wrote {REPORT / 'confirmatory.md'} and confirmatory.json; figures: {results['figures']}")
 
