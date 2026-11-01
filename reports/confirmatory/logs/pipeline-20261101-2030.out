@@ -1,0 +1,15 @@
+skip 4b-placebo
+skip 4b-main-gothic
+skip 4b-main-pirate
+skip 4b-main-noir
+skip q6-sweep
+Wrote paired causal specificity report to runs\confirm\q6-report.md
+skip 17b-main-gothic
+skip 17b-main-pirate
+17b-main-noir exit=0
+4b-washout-gothic exit=1
+4b-washout-pirate exit=1
+4b-washout-noir exit=1
+Generated 1152 cases at runs\confirm\q5-cases.jsonl
+q5-sample exit=1
+confirmatory pipeline finished

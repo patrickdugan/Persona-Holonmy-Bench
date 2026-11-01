@@ -1,0 +1,188 @@
+{
+  "schema_version": 2,
+  "model": "C:\\Users\\patri\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-4B-Instruct-2507\\snapshots\\cdbee75f17c01a7cc42f958dc650907174af0554",
+  "readout": "copy_free",
+  "tokenizer": "C:\\Users\\patri\\.cache\\huggingface\\hub\\models--Qwen--Qwen3-4B-Instruct-2507\\snapshots\\cdbee75f17c01a7cc42f958dc650907174af0554",
+  "reference_condition": "lexical_match",
+  "layers": [
+    9,
+    18,
+    27
+  ],
+  "alphas": [
+    1.0
+  ],
+  "modes": [
+    "erase",
+    "inject"
+  ],
+  "n_records": 2304,
+  "n_test_seeds": 32,
+  "n_training_seeds": 32,
+  "training_probe_ids": [
+    "flaky_ci",
+    "parser_validator",
+    "stale_cache"
+  ],
+  "evaluation_probe_ids": [
+    "feature_flag",
+    "log_rotation",
+    "memory_leak",
+    "rate_limit",
+    "retry_backoff",
+    "schema_migration"
+  ],
+  "probe_holdout": true,
+  "hypothesis_family_size": 6,
+  "hypothesis_family": "all reported layer/mode/source/phase/alpha>0 contrasts",
+  "max_abs_self_patch_delta": 0.0,
+  "max_abs_alpha_zero_effect": null,
+  "identity_check_passed_1e_3": true,
+  "summaries": [
+    {
+      "layer": 9,
+      "mode": "erase",
+      "direction_source": "ordered",
+      "phase": "exit",
+      "alpha": 1.0,
+      "n_seeds": 32,
+      "n_paired_probes": 192,
+      "mean_oriented_effect": -0.02788449078798294,
+      "mean_orthogonal_null": 0.0012301986571401358,
+      "mean_paired_specificity": -0.029114689445123076,
+      "seed_bootstrap_95pct_ci": [
+        -0.0315,
+        -0.0266
+      ],
+      "paired_signflip_p_value": 4.999750012499375e-05,
+      "paired_signflip_method": "monte_carlo_sign_flip",
+      "paired_signflip_null_draws": 20000,
+      "holm_familywise_p_value": 0.0002999850007499625,
+      "mean_first_token_oriented_effect": -0.24552407542554042,
+      "mean_later_token_oriented_effect": -0.013911822810769081
+    },
+    {
+      "layer": 9,
+      "mode": "inject",
+      "direction_source": "ordered",
+      "phase": "exit",
+      "alpha": 1.0,
+      "n_seeds": 32,
+      "n_paired_probes": 192,
+      "mean_oriented_effect": -0.0428528506308794,
+      "mean_orthogonal_null": -0.006425702789177497,
+      "mean_paired_specificity": -0.0364271478417019,
+      "seed_bootstrap_95pct_ci": [
+        -0.0395,
+        -0.0334
+      ],
+      "paired_signflip_p_value": 4.999750012499375e-05,
+      "paired_signflip_method": "monte_carlo_sign_flip",
+      "paired_signflip_null_draws": 20000,
+      "holm_familywise_p_value": 0.0002999850007499625,
+      "mean_first_token_oriented_effect": -0.283650666475296,
+      "mean_later_token_oriented_effect": -0.026912669961651165
+    },
+    {
+      "layer": 18,
+      "mode": "erase",
+      "direction_source": "ordered",
+      "phase": "exit",
+      "alpha": 1.0,
+      "n_seeds": 32,
+      "n_paired_probes": 192,
+      "mean_oriented_effect": 0.07137048244476318,
+      "mean_orthogonal_null": 0.0005019444506615401,
+      "mean_paired_specificity": 0.07086853799410164,
+      "seed_bootstrap_95pct_ci": [
+        0.0678,
+        0.0737
+      ],
+      "paired_signflip_p_value": 4.999750012499375e-05,
+      "paired_signflip_method": "monte_carlo_sign_flip",
+      "paired_signflip_null_draws": 20000,
+      "holm_familywise_p_value": 0.0002999850007499625,
+      "mean_first_token_oriented_effect": 0.11816405388526618,
+      "mean_later_token_oriented_effect": 0.0713238896181186
+    },
+    {
+      "layer": 18,
+      "mode": "inject",
+      "direction_source": "ordered",
+      "phase": "exit",
+      "alpha": 1.0,
+      "n_seeds": 32,
+      "n_paired_probes": 192,
+      "mean_oriented_effect": 0.06182668047646681,
+      "mean_orthogonal_null": -0.004310109730189045,
+      "mean_paired_specificity": 0.06613679020665586,
+      "seed_bootstrap_95pct_ci": [
+        0.0619,
+        0.0701
+      ],
+      "paired_signflip_p_value": 4.999750012499375e-05,
+      "paired_signflip_method": "monte_carlo_sign_flip",
+      "paired_signflip_null_draws": 20000,
+      "holm_familywise_p_value": 0.0002999850007499625,
+      "mean_first_token_oriented_effect": 0.046793648352225624,
+      "mean_later_token_oriented_effect": 0.0635334129134814
+    },
+    {
+      "layer": 27,
+      "mode": "erase",
+      "direction_source": "ordered",
+      "phase": "exit",
+      "alpha": 1.0,
+      "n_seeds": 32,
+      "n_paired_probes": 192,
+      "mean_oriented_effect": -0.028427499656875927,
+      "mean_orthogonal_null": -0.000278064205000798,
+      "mean_paired_specificity": -0.02814943545187513,
+      "seed_bootstrap_95pct_ci": [
+        -0.0301,
+        -0.0263
+      ],
+      "paired_signflip_p_value": 4.999750012499375e-05,
+      "paired_signflip_method": "monte_carlo_sign_flip",
+      "paired_signflip_null_draws": 20000,
+      "holm_familywise_p_value": 0.0002999850007499625,
+      "mean_first_token_oriented_effect": -0.3541666650368522,
+      "mean_later_token_oriented_effect": -0.0030970368534326553
+    },
+    {
+      "layer": 27,
+      "mode": "inject",
+      "direction_source": "ordered",
+      "phase": "exit",
+      "alpha": 1.0,
+      "n_seeds": 32,
+      "n_paired_probes": 192,
+      "mean_oriented_effect": -0.03718864917755127,
+      "mean_orthogonal_null": -0.0007800600336243709,
+      "mean_paired_specificity": -0.036408589143926896,
+      "seed_bootstrap_95pct_ci": [
+        -0.0386,
+        -0.0342
+      ],
+      "paired_signflip_p_value": 4.999750012499375e-05,
+      "paired_signflip_method": "monte_carlo_sign_flip",
+      "paired_signflip_null_draws": 20000,
+      "holm_familywise_p_value": 0.0002999850007499625,
+      "mean_first_token_oriented_effect": -0.542480501656731,
+      "mean_later_token_oriented_effect": 0.0029073351373275122
+    }
+  ],
+  "limitations": [
+    "Residual-stream rank-one projection is not SAE-feature ablation or VPD attribution.",
+    "All cases use fixed scripted assistant turns; these are not interactive model rollouts.",
+    "Style readout uses different completion wordings and lengths; prefer external response grading for validation.",
+    "Training and evaluation transcripts differ by seed and share genre and templated syntax; probes may repeat unless held out.",
+    "A single last-prefix-token hook primarily changes the first suffix prediction in final blocks.",
+    "Bootstrap intervals resample transcript seeds; sign-flips operate on seed-averaged paired effects.",
+    "Exact sign-flip p-values assume exchangeability of signs under the null, which must be justified for the design.",
+    "Holm adjustment covers all reported nonzero-dose contrasts and does not rescue post-hoc layer selection.",
+    "Use --heldout-probes for entirely unseen technical readout questions; seeded holdout alone reuses probe text.",
+    "Inspect unregistered layers as exploratory; a best-layer finding requires a fresh validation split.",
+    "No model consciousness, model-identity switch, or geometric holonomy is implied."
+  ]
+}

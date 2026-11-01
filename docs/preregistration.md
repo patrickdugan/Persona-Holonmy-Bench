@@ -74,4 +74,20 @@ No exclusions. Every scheduled cell is run once. A crashed run is resumed by res
 
 ## Deviations
 
-None yet.
+No hypothesis, estimand, test, cell or seed changed. The run had interruptions and some analyses were added. Under the stopping rule, each crashed stage was rerun from scratch, and its partial directory was kept as `runs/confirm/<stage>.partial.<epoch>`. Stage logs are in `reports/confirmatory/logs/`.
+
+1. **1.7B pirate, first attempt (2026-10-31).**
+   - The stage exited 127 at launch (`pipeline-20261031.out`).
+   - The retry hung for about 22 h at 0% GPU load and was killed on 2026-11-01.
+2. **Out of memory (2026-11-01, about 16:03).** A host OOM killed the pipeline during 1.7B noir. The pipeline was relaunched at 16:08.
+3. **Pipeline shell death (2026-11-01, 16:21).** The relaunched pipeline shell died just as 1.7B pirate finished, before it wrote the stage's `.done` marker. The stage's output was complete (3,072 rows plus `summary.json`). The marker was set by hand after checking, and the event is noted in `pipeline-20261101-1608.out`.
+4. **Model cache damage.** The OOM also interrupted a rewrite of the Qwen3-4B checkpoint in the local Hugging Face cache, leaving shards 1–2 as `.incomplete`.
+   - On the 20:30 relaunch, the 4B washout, Q5 and item-check stages failed at model load (`FileNotFoundError`) without scoring anything.
+   - The checkpoint was re-downloaded at the pinned revision `cdbee75`, and all three shards' SHA-256 values were checked against the hub.
+   - Those stages were rerun at 20:49, and all finished with exit 0.
+   - The 4B stages that had finished before the OOM used the intact checkpoint.
+5. **Exploratory additions, made after the confirmatory results were known and labelled exploratory everywhere.**
+   - The probe family as the unit of analysis (per-family estimates and a sign-flip test across families).
+   - An item check that runs the three calibration families on confirmatory seeds 20000–20031 with the 4B exit/default settings (`scripts/exploratory_items.sh`, stages `x-4b-origprobes-*`).
+   - A nine-family pooled test.
+   - The 4B–1.7B correlation of per-family P.

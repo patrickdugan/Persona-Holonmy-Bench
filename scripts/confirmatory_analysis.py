@@ -263,6 +263,9 @@ def main() -> None:
               "4b_calibration_9200": per_probe(cal or None),
               "4b_origprobes_confirmatory_seeds": per_probe(
                   rows_of(*(f"x-4b-origprobes-{g}" for g in GENRES)))}
+    if tables["4b_confirmatory"] and tables["4b_origprobes_confirmatory_seeds"]:
+        tables["4b_all_nine_families_confirmatory_seeds"] = {
+            **tables["4b_confirmatory"], **tables["4b_origprobes_confirmatory_seeds"]}
     results["exploratory_per_probe"] = tables
     results["exploratory_item_level"] = item_level(tables)
     results["figures"] = figures(results)

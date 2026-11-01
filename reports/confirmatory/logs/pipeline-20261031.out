@@ -1,0 +1,8 @@
+skip 4b-placebo
+skip 4b-main-gothic
+skip 4b-main-pirate
+skip 4b-main-noir
+skip q6-sweep
+Wrote paired causal specificity report to runs\confirm\q6-report.md
+skip 17b-main-gothic
+17b-main-pirate exit=127
